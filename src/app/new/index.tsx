@@ -54,7 +54,7 @@ export default function NewSource() {
       <View style={styles.body}>
         <Text style={styles.lead}>何から作りますか？</Text>
         <Button title="写真から作る" onPress={() => void fromPhoto()} disabled={busy} testID="source-photo" style={styles.big} />
-        <Button title="文字から作る（準備中）" onPress={() => {}} disabled variant="secondary" style={styles.big} />
+        <Button title="文字から作る" onPress={() => router.push('/new/text')} disabled={busy} variant="secondary" testID="source-text" style={styles.big} />
         <Button title="白紙から作る" onPress={() => void blank()} disabled={busy} variant="secondary" testID="source-blank" style={styles.big} />
         {busy && <ActivityIndicator style={{ marginTop: 16 }} />}
       </View>
