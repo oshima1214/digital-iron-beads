@@ -10,7 +10,37 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "supportsTablet": true,
-      "bundleIdentifier": "com.oshima1214.digitalironbeads"
+      "bundleIdentifier": "com.oshima1214.digitalironbeads",
+      "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": false,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "デジタル・アイロンビーズの作品",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Owner",
+            "LSItemContentTypes": [
+              "com.oshima1214.digitalironbeads.beads"
+            ]
+          }
+        ],
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.oshima1214.digitalironbeads.beads",
+            "UTTypeDescription": "デジタル・アイロンビーズの作品",
+            "UTTypeConformsTo": [
+              "public.data"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "beads"
+              ],
+              "public.mime-type": [
+                "application/x-digital-iron-beads"
+              ]
+            }
+          }
+        ]
+      }
     },
     "web": {
       "output": "static",
