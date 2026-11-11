@@ -7,6 +7,7 @@ import type { ProjectSummary } from '@/core/file/project';
 import { draftStore } from '@/state/draft';
 import { editorStore } from '@/state/editor';
 import { flushAll } from '@/state/lifecycle';
+import { navStore } from '@/state/nav';
 import { projectsStore, useProjects } from '@/state/projects';
 import { Button } from '@/ui/Button';
 import { confirmDestructive, promptText, showMenu } from '@/ui/dialogs';
@@ -25,6 +26,7 @@ export default function Home() {
       void flushAll(
         () => draftStore().getState().close(),
         () => editorStore().getState().close(),
+        () => navStore().getState().close(),
       )()
         .then(() => projectsStore().getState().refresh())
         .catch((e) => console.warn(e));
