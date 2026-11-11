@@ -1,9 +1,8 @@
 import { BIZUDPGothic_400Regular, BIZUDPGothic_700Bold, useFonts } from '@expo-google-fonts/biz-udpgothic';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-import { colors } from '@/ui/theme';
+import { RootStack } from '@/ui/RootStack';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -16,5 +15,5 @@ export default function RootLayout() {
 
   if (!loaded && !error) return null;
 
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }} />;
+  return <RootStack />;
 }
