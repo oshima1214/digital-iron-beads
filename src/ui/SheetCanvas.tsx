@@ -14,18 +14,20 @@ interface Props {
   height: number;
   mirror?: boolean;
   styleMode?: PaintOptions['style'];
+  /** 制作ナビで強調する色 */
+  focus?: number;
   /** シートをその場で書き換えたときに増やす（同じ参照でも描き直す） */
   version?: number;
   testID?: string;
 }
 
-export function SheetCanvas({ sheet, width, height, mirror, styleMode, version = 0, testID }: Props) {
+export function SheetCanvas({ sheet, width, height, mirror, styleMode, focus, version = 0, testID }: Props) {
   const layout = sheetLayout(sheet, width, height);
   const picture = useMemo(
-    () => createPicture((c) => paintSheet(c, sheet, layout.cell, { mirror, style: styleMode }), { width: layout.width, height: layout.height }),
+    () => createPicture((c) => paintSheet(c, sheet, layout.cell, { mirror, style: styleMode, focus }), { width: layout.width, height: layout.height }),
     // version はシートの中身が変わったことを知らせるためだけの依存
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sheet, layout.cell, layout.width, layout.height, mirror, styleMode, version],
+    [sheet, layout.cell, layout.width, layout.height, mirror, styleMode, focus, version],
   );
   return (
     <View testID={testID} style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
