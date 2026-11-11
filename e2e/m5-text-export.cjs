@@ -45,9 +45,25 @@ async function noScroll(page, label) {
     await page.getByTestId('text-input').waitFor({ timeout: 30000 });
     await noScroll(page, 'text');
     await page.getByTestId('text-input').fill('あいう');
-    check('3 full-width chars are rejected on 29', (await page.getByTestId('text-input').inputValue()) !== 'あいう');
+    await page.waitForTimeout(300);
+    check('3 full-width chars stay in the field (IME-safe) but explain the limit', (await page.getByTestId('text-input').inputValue()) === 'あいう' && /入りません/.test(await page.getByTestId('text-limit').textContent()));
+    check('create is disabled when the text does not fit', (await page.getByTestId('text-create').getAttribute('aria-disabled')) === 'true');
     await page.getByTestId('text-input').fill('AB');
     await page.getByTestId('text-preview').waitFor({ timeout: 15000 });
+    await page.getByTestId('text-input').fill('ABC');
+    check('create is disabled right after the text changes (no stale preview)', (await page.getByTestId('text-create').getAttribute('aria-disabled')) === 'true');
+    await page.getByTestId('text-input').fill('AB');
+    await page.getByTestId('text-preview').waitFor({ timeout: 15000 });
+    await page.waitForTimeout(400);
+    // 背景の色を選んでから、選ぶ画面を「閉じる」で閉じても、背景は「なし」に戻らない
+    await page.getByTestId('text-bg').click();
+    await page.getByTestId('bead-5001').click();
+    await page.getByTestId('text-bg').click();
+    await page.getByTestId('picker-close').click();
+    check('closing the background picker keeps the chosen colour', /5001/.test(await page.getByTestId('text-bg').textContent()), await page.getByTestId('text-bg').textContent());
+    await page.getByTestId('text-bg').click();
+    await page.getByTestId('bead-5001').click(); // 同じ色をもう一度押すと「なし」
+    await page.waitForTimeout(600);
     await page.getByTestId('text-create').click();
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     const stats = await page.getByTestId('editor-stats').textContent();

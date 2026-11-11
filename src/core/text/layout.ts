@@ -50,3 +50,14 @@ export function placeText(cells: Uint8Array, w: number, h: number, size: SheetSi
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (ox + x < size && oy + y < size) s.cells[(oy + y) * size + ox + x] = cells[y * w + x];
   return s;
 }
+
+/** 入らないときの説明（入るとき・空のときは null）。入力は止めずに、この文言を出して作成を無効にする。 */
+export function textLimitMessage(layout: TextLayout): string | null {
+  if (layout.widths.length === 0 || layout.fits) return null;
+  return `入りません（全角${layout.maxFull}文字・半角${layout.maxFull * 2}文字まで）`;
+}
+
+/** プレビューを作った入力の組み合わせ（古いプレビューで作成しないための照合用）。 */
+export function textKey(o: { text: string; size: SheetSize; fg: number; bg: number }): string {
+  return JSON.stringify([o.text, o.size, o.fg, o.bg]);
+}

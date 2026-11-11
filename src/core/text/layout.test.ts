@@ -1,5 +1,5 @@
 import { idx } from '../sheet/sheet';
-import { isHalfWidth, maskToCells, placeText, textLayout } from './layout';
+import { isHalfWidth, maskToCells, placeText, textKey, textLayout, textLimitMessage } from './layout';
 
 test('isHalfWidth', () => {
   expect(isHalfWidth('A')).toBe(true);
@@ -42,4 +42,18 @@ test('placeText centres the block on the sheet', () => {
   expect(s.cells[idx(s, 5, 5)]).toBe(5);
   expect(s.cells[idx(s, 6, 6)]).toBe(5);
   expect(s.cells[idx(s, 4, 4)]).toBe(0);
+});
+
+test('textLimitMessage explains the limit only when the text does not fit', () => {
+  expect(textLimitMessage(textLayout('ひろと', 29))).toBe('入りません（全角2文字・半角4文字まで）');
+  expect(textLimitMessage(textLayout('あい', 29))).toBeNull();
+  expect(textLimitMessage(textLayout('', 29))).toBeNull();
+});
+
+test('textKey changes when any input changes', () => {
+  const k = textKey({ text: 'AB', size: 29, fg: 8, bg: 0 });
+  expect(textKey({ text: 'AB', size: 29, fg: 8, bg: 0 })).toBe(k);
+  expect(textKey({ text: 'ABC', size: 29, fg: 8, bg: 0 })).not.toBe(k);
+  expect(textKey({ text: 'AB', size: 58, fg: 8, bg: 0 })).not.toBe(k);
+  expect(textKey({ text: 'AB', size: 29, fg: 8, bg: 1 })).not.toBe(k);
 });

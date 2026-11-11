@@ -65,12 +65,25 @@ export function BeadSetPicker({ visible, value, onClose }: MultiProps) {
   );
 }
 
-/** ビーズを1色選ぶ。 */
-export function BeadOnePicker({ visible, title, value, onClose }: { visible: boolean; title: string; value: number; onClose(v: number): void }) {
+/** ビーズを1色選ぶ。onClose は色を押したとき、onCancel は閉じる・スワイプで閉じたとき（なければ今の値で onClose）。 */
+export function BeadOnePicker({
+  visible,
+  title,
+  value,
+  onClose,
+  onCancel,
+}: {
+  visible: boolean;
+  title: string;
+  value: number;
+  onClose(v: number): void;
+  onCancel?(): void;
+}) {
+  const cancel = () => (onCancel ? onCancel() : onClose(value));
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => onClose(value)}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={cancel}>
       <SafeAreaView style={styles.root}>
-        <NavBar title={title} right={{ title: '閉じる', onPress: () => onClose(value) }} />
+        <NavBar title={title} right={{ title: '閉じる', testID: 'picker-close', onPress: cancel }} />
         <Chips selected={[value]} onPress={(i) => onClose(i)} />
       </SafeAreaView>
     </Modal>

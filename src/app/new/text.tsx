@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { createProject } from '@/core/file/project';
 import { beadByIndex, PERLER32 } from '@/core/palette/perler32';
 import type { Sheet, SheetSize } from '@/core/sheet/sheet';
-import { maskToCells, placeText, textLayout } from '@/core/text/layout';
+import { maskToCells, placeText, textKey, textLayout, textLimitMessage } from '@/core/text/layout';
 import { projectRepo } from '@/platform/projectRepo';
 import { renderTextMask } from '@/platform/textMask';
 import { projectsStore } from '@/state/projects';
@@ -31,10 +31,14 @@ export default function NewText() {
   const [fg, setFg] = useState(idx('5018'));
   const [bg, setBg] = useState(0);
   const [picker, setPicker] = useState<null | 'fg' | 'bg'>(null);
-  const [sheet, setSheet] = useState<Sheet | null>(null);
+  // プレビューと、それを作った入力の組み合わせ（入力が変わったら古いプレビューでは作成しない）
+  const [preview, setPreview] = useState<{ key: string; sheet: Sheet } | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [busy, setBusy] = useState(false);
   const layout = useMemo(() => textLayout(text, size), [text, size]);
+  const key = textKey({ text, size, fg, bg });
+  const sheet = preview?.key === key ? preview.sheet : null;
+  const limit = textLimitMessage(layout);
 
   // 入力が変わったら少し待ってからプレビューを作り直す
   useEffect(() => {
@@ -45,7 +49,7 @@ export default function NewText() {
         .then(({ mask, w, h }) => {
           if (!alive) return;
           const cells = maskToCells(mask, w, h, MASK_CELL_PX, fg, bg, TEXT_THRESHOLD);
-          setSheet(placeText(cells, layout.totalW, layout.charH, size));
+          setPreview({ key: textKey({ text, size, fg, bg }), sheet: placeText(cells, layout.totalW, layout.charH, size) });
         })
         .catch((e) => console.warn(e));
     }, 250);
@@ -55,10 +59,8 @@ export default function NewText() {
     };
   }, [text, layout, size, fg, bg]);
 
-  // 入る文字数を超える入力は受け付けない
-  const onChangeText = (v: string) => {
-    if (v === '' || textLayout(v, size).fits) setText(v);
-  };
+  // 入力は止めない（日本語の変換中に止めると変換が壊れるため）。入らないときは説明を出して作成を無効にする
+  const onChangeText = (v: string) => setText(v);
 
   const create = async () => {
     if (!sheet || !layout.fits) return;
@@ -91,7 +93,9 @@ export default function NewText() {
           {sheet && layout.fits && box.w > 0 ? (
             <SheetCanvas testID="text-preview" sheet={sheet} width={box.w} height={box.h} />
           ) : (
-            <Text style={styles.hint}>文字を入力してください</Text>
+            <Text style={[styles.hint, limit && styles.warn]} testID="text-limit">
+              {limit ?? '文字を入力してください'}
+            </Text>
           )}
         </View>
         <View style={styles.panel}>
@@ -105,14 +109,11 @@ export default function NewText() {
             returnKeyType="done"
           />
           <SettingRow label="サイズ">
-            <Segmented
+            <Segmented<SheetSize>
               testID="text-size"
               options={SIZES}
               value={size}
-              onChange={(v) => {
-                setSize(v);
-                if (!textLayout(text, v).fits) setText('');
-              }}
+              onChange={setSize}
             />
           </SettingRow>
           <SettingRow label="文字の色" onPress={() => setPicker('fg')} testID="text-fg">
@@ -128,10 +129,12 @@ export default function NewText() {
         title={picker === 'bg' ? '背景の色（もう一度同じ色を押すと「なし」）' : '文字の色'}
         value={picker === 'bg' ? bg : fg}
         onClose={(v) => {
+          // 色のチップを押したときだけ呼ばれる（閉じる・スワイプでは onCancel）
           if (picker === 'fg') setFg(v);
           else if (picker === 'bg') setBg(v === bg ? 0 : v);
           setPicker(null);
         }}
+        onCancel={() => setPicker(null)}
       />
     </SafeAreaView>
   );
@@ -140,7 +143,8 @@ export default function NewText() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
   preview: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  hint: { fontFamily: fonts.regular, fontSize: 15, color: colors.subtext },
+  hint: { fontFamily: fonts.regular, fontSize: 15, color: colors.subtext, textAlign: 'center' },
+  warn: { color: '#FF3B30', fontFamily: fonts.bold },
   panel: { backgroundColor: colors.panel, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
   input: { minHeight: 48, fontFamily: fonts.bold, fontSize: 20, color: colors.text, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
 });
