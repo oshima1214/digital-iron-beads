@@ -55,7 +55,16 @@ export interface EditorState {
 const BLACK = PERLER32.find((b) => b.code === '5018')!.index;
 
 export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new Date(), autosaveMs = 500) {
-  const saver = createAutosaver<Project>((p) => repo.save(p), autosaveMs);
+  // 編集画面の保存はナビの進み具合（nav）を書き換えない。nav はナビ画面だけが書く（古い値で上書きしないように）
+  const saver = createAutosaver<Project>(async (p) => {
+    let nav = p.nav;
+    try {
+      nav = (await repo.load(p.id)).nav;
+    } catch {
+      // まだ保存されていない作品などは手元の値を使う
+    }
+    await repo.save({ ...p, nav });
+  }, autosaveMs);
   let history = new History();
   let stroke: { changes: Map<number, CellChange>; last: Cell | null } | null = null;
   // 範囲モードの「2点を指定」：1点目をタップしたら anchor、2点目のタップ後の rangeEnd で矩形を確定する

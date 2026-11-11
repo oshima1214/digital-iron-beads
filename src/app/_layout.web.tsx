@@ -6,6 +6,7 @@ import { AppState } from 'react-native';
 import { draftStore } from '@/state/draft';
 import { editorStore } from '@/state/editor';
 import { flushAll, flushOnBackground } from '@/state/lifecycle';
+import { navStore } from '@/state/nav';
 import { RootStack } from '@/ui/RootStack';
 
 // Web（自動テスト用）: CanvasKit（public/canvaskit.wasm）の読み込みを待ってから描画する。
@@ -17,6 +18,7 @@ export default function RootLayoutWeb() {
       flushAll(
         () => draftStore().getState().flush(),
         () => editorStore().getState().flush(),
+        () => navStore().getState().flush(),
       ),
     );
     return () => sub.remove();

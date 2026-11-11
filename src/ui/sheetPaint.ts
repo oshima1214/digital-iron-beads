@@ -18,7 +18,11 @@ export interface PaintOptions {
   mirror?: boolean;
   /** bead = 通常、melted = 完成イメージ（アイロン後） */
   style?: 'bead' | 'melted';
+  /** 制作ナビ：この色だけを実際の色で大きく、ほかのビーズは薄いグレーの小さな丸で描く */
+  focus?: number;
 }
+
+export const NAV_OTHER = '#BDBDC2';
 
 /** 仕様書 §6.4 のシート描画。cell はマスの大きさ（px）。 */
 export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number, opts: PaintOptions = {}): void {
@@ -57,6 +61,11 @@ export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number, opts: P
       const v = sheet.cells[y * sheet.width + x];
       const cx = (mx(x) + 0.5) * cell;
       const cy = (y + 0.5) * cell;
+      if (opts.focus !== undefined && v !== 0 && v !== opts.focus) {
+        fill.setColor(Skia.Color(NAV_OTHER));
+        canvas.drawCircle(cx, cy, r * 0.5, fill);
+        continue;
+      }
       fill.setColor(colorOf(v));
       if (v === 0) {
         canvas.drawCircle(cx, cy, Math.max(0.5, dot), fill);

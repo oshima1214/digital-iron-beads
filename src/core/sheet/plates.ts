@@ -1,4 +1,4 @@
-import { getCell, PLATE, type Sheet, type SheetSize } from './sheet';
+import { createSheet, getCell, PLATE, type Sheet, type SheetSize } from './sheet';
 
 export interface Plate {
   index: number;
@@ -29,4 +29,14 @@ export function platesOf(sheet: Sheet): Plate[] {
 /** px, py は 0..28。シートの外は 0。 */
 export function plateCell(sheet: Sheet, plate: Plate, px: number, py: number): number {
   return getCell(sheet, plate.originX + px, plate.originY + py);
+}
+
+/** プレート1枚分（29×29、rows を指定すれば [開始, 終了) の行だけ）を切り出した表示用のシート。シートの外は背景。 */
+export function plateSheet(sheet: Sheet, plate: Plate, rows: [number, number] = [0, PLATE]): Sheet {
+  const [r0, r1] = rows;
+  const out = createSheet(PLATE, r1 - r0);
+  for (let y = r0; y < r1; y++) {
+    for (let x = 0; x < PLATE; x++) out.cells[(y - r0) * PLATE + x] = plateCell(sheet, plate, x, y);
+  }
+  return out;
 }

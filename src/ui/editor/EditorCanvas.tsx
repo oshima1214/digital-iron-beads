@@ -1,6 +1,10 @@
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platform, View } from 'react-native';
 
+import { fitPlate, PLATE_CELLS } from '@/core/physical';
+import { type Plate, plateSheet } from '@/core/sheet/plates';
+import type { Sheet } from '@/core/sheet/sheet';
+
 import type { Cell } from '@/core/sheet/ops';
 import { editorStore, useEditor } from '@/state/editor';
 
@@ -12,6 +16,7 @@ import { createTouchTracker, HOLD_MS, type TouchAction, type TouchPoint } from '
 
 /** iPhone だけピンチズームとドラッグでの移動を許す（iPad はプレートを重ねるので動かさない）。 */
 const CAN_ZOOM = Platform.OS === 'ios' && !Platform.isPad;
+// 注意：プレート表示（iPad）のときはズームしない（CAN_ZOOM は iPad で常に false）
 
 /** 値の変化を1フレームに1回までにまとめる（塗るたびにシート全体を描き直さないように）。 */
 function useFrameThrottled<T>(value: T): T {
@@ -23,7 +28,14 @@ function useFrameThrottled<T>(value: T): T {
   return shown;
 }
 
-export function EditorCanvas() {
+interface Props {
+  /** iPad：このプレートだけを実寸で描く（null ならシート全体） */
+  plate?: Plate | null;
+  /** iPad：実寸の1マスの大きさ */
+  physicalCell?: number | null;
+}
+
+export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) {
   const project = useEditor((s) => s.project);
   const liveVersion = useEditor((s) => s.version);
   const version = useFrameThrottled(liveVersion);
@@ -39,8 +51,25 @@ export function EditorCanvas() {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinchStart = useRef<{ t: Transform; a: Pt; b: Pt } | null>(null);
 
-  const sheet = project?.sheet;
-  const layout = sheet ? sheetLayout(sheet, box.w, box.h) : { cell: 0, width: 0, height: 0 };
+  const full = project?.sheet;
+  // iPad はプレート1枚（半分表示なら一部の行）だけを実寸で描き、マス座標にプレートの原点を足す
+  const plateMode = !!(plate && physicalCell && full);
+  // 編集は実物を重ねないので、プレートが実寸で丸ごと入らないとき（iPad mini など）は箱に収めて表示する
+  const physicalFits = plateMode && box.w > 0 && fitPlate(physicalCell!, box.w, box.h).fits === 'full';
+  const plateCell = physicalFits ? physicalCell! : Math.min(box.w, box.h) / PLATE_CELLS;
+  const rows: [number, number] = [0, PLATE_CELLS];
+  const sheet = useMemo(
+    () => (plateMode ? plateSheet(full!, plate!, rows) : full),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [full, plateMode, plate, rows[0], rows[1], version],
+  );
+  const offset = plateMode ? { x: plate!.originX, y: plate!.originY + rows[0] } : { x: 0, y: 0 };
+  const layout = !sheet
+    ? { cell: 0, width: 0, height: 0 }
+    : plateMode
+      ? { cell: plateCell, width: plateCell * sheet.width, height: plateCell * sheet.height }
+      : sheetLayout(sheet, box.w, box.h);
+
   const clamped = clampTransform(zoom, layout.width, layout.height, box.w, box.h);
   // 値が同じなら同じオブジェクトを使う（タッチの受け取りを毎回作り直さないように）
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,9 +87,14 @@ export function EditorCanvas() {
       return ne.touches.map((tt) => ({ id: Number(tt.identifier), p: rel(tt.pageX, tt.pageY) }));
     };
     const cellAt = (p: Pt): Cell | null => {
-      if (!sheet) return null;
+      if (!sheet || !full) return null;
       const c = toContent(t, p);
-      return viewToCell(c.x, c.y, sheet, layout.cell, mirror);
+      const v = viewToCell(c.x, c.y, sheet, layout.cell, mirror);
+      if (!v) return null;
+      const x = v[0] + offset.x;
+      const y = v[1] + offset.y;
+      // 13/21 マスの作品をプレートに置いたとき、作品の外のマスは塗れない
+      return x < full.width && y < full.height ? [x, y] : null;
     };
     const st = () => editorStore().getState();
     /** ペン・消しゴム・範囲選択は begin/move/end、バケツと1マス選択はタップで実行する。 */
@@ -131,7 +165,7 @@ export function EditorCanvas() {
         run(tracker.current.end(Date.now()));
       },
     });
-  }, [sheet, t, layout.cell, layout.width, layout.height, box.w, box.h, mirror, melted]);
+  }, [sheet, full, offset.x, offset.y, t, layout.cell, layout.width, layout.height, box.w, box.h, mirror, melted]);
   /* eslint-enable react-hooks/refs, react-hooks/purity */
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -152,10 +186,40 @@ export function EditorCanvas() {
             transformOrigin: 'top left',
             transform: [{ translateX: t.tx }, { translateY: t.ty }, { scale: t.scale }],
           }}>
-          <SheetCanvas sheet={sheet} width={layout.width} height={layout.height} mirror={mirror} styleMode={melted ? 'melted' : 'bead'} version={version} />
-          {!melted && <SelectionOverlay sheet={sheet} cell={layout.cell} mirror={mirror} cells={selection} rect={range} />}
+          <SheetCanvas
+            sheet={sheet}
+            width={layout.width}
+            height={layout.height}
+            mirror={mirror}
+            styleMode={melted ? 'melted' : 'bead'}
+            version={version}
+            exactCell={plateMode ? layout.cell : undefined}
+          />
+          {!melted && full && (
+            <SelectionOverlay sheet={sheet} cell={layout.cell} mirror={mirror} cells={toLocal(selection, full.width, offset, sheet)} rect={rangeLocal(range, offset)} />
+          )}
         </View>
       )}
     </View>
   );
+}
+
+/** シート全体のマス番号 → 表示しているシート（プレート）のマス番号。表示範囲外は除く。 */
+function toLocal(sel: ReadonlySet<number>, fullW: number, off: { x: number; y: number }, view: Sheet): ReadonlySet<number> {
+  if (off.x === 0 && off.y === 0 && view.width === fullW) return sel;
+  const out = new Set<number>();
+  for (const i of sel) {
+    const x = (i % fullW) - off.x;
+    const y = Math.floor(i / fullW) - off.y;
+    if (x >= 0 && y >= 0 && x < view.width && y < view.height) out.add(y * view.width + x);
+  }
+  return out;
+}
+
+function rangeLocal(r: [Cell, Cell] | null, off: { x: number; y: number }): [Cell, Cell] | null {
+  if (!r) return null;
+  return [
+    [r[0][0] - off.x, r[0][1] - off.y],
+    [r[1][0] - off.x, r[1][1] - off.y],
+  ];
 }

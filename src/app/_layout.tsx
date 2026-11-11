@@ -6,6 +6,7 @@ import { AppState } from 'react-native';
 import { draftStore } from '@/state/draft';
 import { editorStore } from '@/state/editor';
 import { flushAll, flushOnBackground } from '@/state/lifecycle';
+import { navStore } from '@/state/nav';
 import { RootStack } from '@/ui/RootStack';
 
 SplashScreen.preventAutoHideAsync();
@@ -19,6 +20,7 @@ export default function RootLayout() {
       flushAll(
         () => draftStore().getState().flush(),
         () => editorStore().getState().flush(),
+        () => navStore().getState().flush(),
       ),
     );
     return () => sub.remove();

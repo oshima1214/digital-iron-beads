@@ -7,6 +7,7 @@ import type { ProjectSummary } from '@/core/file/project';
 import { draftStore } from '@/state/draft';
 import { editorStore } from '@/state/editor';
 import { flushAll } from '@/state/lifecycle';
+import { navStore } from '@/state/nav';
 import { projectsStore, useProjects } from '@/state/projects';
 import { Button } from '@/ui/Button';
 import { confirmDestructive, promptText, showMenu } from '@/ui/dialogs';
@@ -25,6 +26,7 @@ export default function Home() {
       void flushAll(
         () => draftStore().getState().close(),
         () => editorStore().getState().close(),
+        () => navStore().getState().close(),
       )()
         .then(() => projectsStore().getState().refresh())
         .catch((e) => console.warn(e));
@@ -54,7 +56,10 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Text style={styles.title}>作品</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>作品</Text>
+        <Button title="設定" variant="plain" onPress={() => router.push('/settings')} testID="open-settings" />
+      </View>
       <View style={styles.list} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
         {items.length === 0 ? (
           <View style={styles.empty}>
@@ -83,7 +88,8 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, marginTop: 12, marginBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 12 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text },
   list: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontFamily: fonts.regular, fontSize: 15, color: colors.subtext },
