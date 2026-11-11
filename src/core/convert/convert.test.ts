@@ -79,3 +79,20 @@ test('convertImage 116 performance', () => {
   convertImage(img, defaultConvertSettings(116));
   expect(Date.now() - t).toBeLessThan(4000);
 });
+
+test('convertImage: transparent sticker touching the edge keeps its body (default settings)', () => {
+  const img = solid(400, 400, [0, 0, 0, 0]);
+  drawRect(img, 80, 100, 240, 300, [255, 111, 152, 255]); // 下端に接する
+  drawRect(img, 140, 200, 20, 20, [0, 0, 0, 255]);
+  drawRect(img, 240, 200, 20, 20, [0, 0, 0, 255]);
+  const counts = countBeads(convertImage(img, defaultConvertSettings(29)));
+  const pink = counts.find((c) => c.index === b('5006'));
+  expect(pink?.count ?? 0).toBeGreaterThan(300);
+});
+
+test('convertImage: subject filling the whole frame is not erased (default settings)', () => {
+  const sh = convertImage(solid(300, 300, [221, 8, 8, 255]), defaultConvertSettings(13));
+  expect(sh.cells.every((v) => v === b('5005'))).toBe(true);
+  const strip = convertImage(solid(40, 3000, [221, 8, 8, 255]), defaultConvertSettings(116));
+  expect(countBeads(strip).length).toBe(1);
+});

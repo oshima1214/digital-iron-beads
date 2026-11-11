@@ -1,6 +1,9 @@
 import { imageToOklab } from '../color/oklab';
 import type { RgbaImage } from './types';
 
+/** 外周推定で背景とみなしてよい割合の上限。超えたら推定をやめて全部を前景にする。 */
+export const MAX_BACKGROUND_RATIO = 0.95;
+
 /** 外周ピクセルで最も多い色（RGB 各4ビットのビン）の平均を OKLab で返す。 */
 function dominantBorderColor(img: RgbaImage, lab: Float32Array): [number, number, number] | null {
   const { width: w, height: h, data } = img;
@@ -40,6 +43,7 @@ function dominantBorderColor(img: RgbaImage, lab: Float32Array): [number, number
  * - removeBackground のとき、外周で最も多い色を背景色とし、それに近い（ΔE ≤ 2*tol）外周ピクセルを起点に
  *   4近傍で広げる。隣との ΔE ≤ tol かつ背景色との ΔE ≤ 2*tol なら背景。
  *   画像の端に接したオブジェクトは、背景色と違えば消えない。
+ * - 透過を含む画像では外周推定をしない。推定結果が 95% を超えたら推定を無効にする。
  */
 export function backgroundMask(
   img: RgbaImage,
@@ -50,8 +54,15 @@ export function backgroundMask(
   const { width: w, height: h, data } = img;
   const n = w * h;
   const mask = new Uint8Array(n);
-  for (let i = 0; i < n; i++) if (data[i * 4 + 3] < 128) mask[i] = 1;
-  if (!removeBackground) return mask;
+  let transparent = 0;
+  for (let i = 0; i < n; i++) {
+    if (data[i * 4 + 3] < 128) {
+      mask[i] = 1;
+      transparent++;
+    }
+  }
+  // 仕様 §5.1: 外周からの推定は「透過がない画像」だけ。透過があればアルファだけで背景を決める。
+  if (!removeBackground || transparent > 0) return mask;
 
   const lab = labCache ?? imageToOklab(data, n);
   const d2 = (i: number, j: number) => {
@@ -104,5 +115,9 @@ export function backgroundMask(
     if (y > 0) visit(i - w);
     if (y < h - 1) visit(i + w);
   }
+  // 被写体が画面いっぱいなどで、ほぼ全部が背景になったら推定をあきらめる（空のシートを返さない）。
+  let bgCount = 0;
+  for (let i = 0; i < n; i++) bgCount += mask[i];
+  if (bgCount > n * MAX_BACKGROUND_RATIO) mask.fill(0);
   return mask;
 }
