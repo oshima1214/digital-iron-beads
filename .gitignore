@@ -44,3 +44,4 @@ example
 /android
 tools/compare/out/
 tools/compare/private/
+e2e/failure.png

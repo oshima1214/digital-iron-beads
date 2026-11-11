@@ -50,7 +50,8 @@
     "test": "jest",
     "web:export": "expo export -p web",
     "compare": "tsx tools/compare/run.ts",
-    "fixtures": "tsx tools/compare/fixtures/make-fixtures.ts"
+    "fixtures": "tsx tools/compare/fixtures/make-fixtures.ts",
+    "e2e:web": "npm run web:export && NODE_PATH=$(npm root -g) node e2e/m2-flow.cjs"
   },
   "private": true
 }

@@ -19,6 +19,7 @@ export function Segmented<T extends string | number>({ options, value, onChange,
             key={String(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
+            aria-selected={on}
             testID={testID ? `${testID}-${o.value}` : undefined}
             onPress={() => onChange(o.value)}
             style={[styles.item, on && styles.itemOn]}>
