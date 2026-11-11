@@ -85,3 +85,15 @@ test('close flushes and clears', async () => {
   expect((await repo.load(id)).nav).toEqual({ plateIndex: 0, colorIndex: 1 });
   expect(store.getState().project).toBeNull();
 });
+
+test('nav saves only the progress and keep sheet edits made elsewhere', async () => {
+  const { repo, store, id } = await setup();
+  const disk = await repo.load(id);
+  disk.sheet.cells[idx(disk.sheet, 10, 10)] = 9; // 編集画面で塗った
+  await repo.save(disk);
+  store.getState().next();
+  await store.getState().flush();
+  const saved = await repo.load(id);
+  expect(saved.sheet.cells[idx(saved.sheet, 10, 10)]).toBe(9);
+  expect(saved.nav).toEqual({ plateIndex: 0, colorIndex: 1 });
+});

@@ -25,3 +25,16 @@ test('flushAll runs all even if one rejects', async () => {
   expect(b).toHaveBeenCalled();
   warn.mockRestore();
 });
+
+test('flushAll runs flushers one after another in order', async () => {
+  const log: string[] = [];
+  const slow = async () => {
+    await new Promise((r) => setTimeout(r, 20));
+    log.push('a');
+  };
+  const fast = async () => {
+    log.push('b');
+  };
+  await flushAll(slow, fast)();
+  expect(log).toEqual(['a', 'b']);
+});

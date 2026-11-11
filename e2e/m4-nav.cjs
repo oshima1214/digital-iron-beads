@@ -70,6 +70,44 @@ async function noScroll(page, label) {
     await page.getByTestId('nav-title').waitFor({ timeout: 30000 });
     check('reload resumes nav at plate 2/4', /プレート 2\/4/.test(await title()), await title());
 
+    // スワイプで戻る（ブラウザの「戻る」＝「‹ 編集」ボタンを通らない経路）→ 編集 → もう一度ナビ：進み具合が残る
+    await page.goto(`${BASE}/project/${id}`);
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    await page.getByTestId('to-nav').click();
+    await page.getByTestId('nav-current').waitFor({ timeout: 30000 });
+    await page.getByTestId('plate-1').click();
+    await page.getByTestId('nav-next').click();
+    await page.waitForTimeout(900);
+    const progressBefore = await current();
+    await page.goBack();
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    const statsBefore = await page.getByTestId('editor-stats').textContent();
+    await page.getByTestId('color-5005').click(); // 図案にない色で塗って、必ず保存が起きるようにする
+    const eb = await page.getByTestId('editor-canvas').boundingBox();
+    await page.mouse.click(eb.x + eb.width / 2, eb.y + eb.height / 2);
+    await page.waitForTimeout(300);
+    check('edit after swipe-back actually changed the sheet', (await page.getByTestId('editor-stats').textContent()) !== statsBefore);
+    await page.waitForTimeout(900);
+    await page.getByTestId('to-nav').click();
+    await page.getByTestId('nav-current').waitFor({ timeout: 30000 });
+    check('swipe-back then edit keeps nav progress', (await current()) === progressBefore, `${progressBefore} / ${await current()}`);
+
+    // iPad mini 横向き（163pt/inch、1133×744）：上に薄いパネル、上半分/下半分の切り替え
+    await page.setViewportSize({ width: 1133, height: 744 });
+    await page.goto(`${BASE}/nav/${id}?pad=1&ppi=163`);
+    await page.getByTestId('nav-current').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(600);
+    check('iPad mini landscape: no rotate message', (await page.getByText('横向きにしてください', { exact: false }).count()) === 0);
+    check('iPad mini landscape: half toggle shown', (await page.getByTestId('nav-half-1').count()) === 1);
+    if ((await page.getByTestId('nav-half-1').count()) === 1) {
+      await page.getByTestId('nav-half-1').click();
+      check('iPad mini landscape: switch to bottom half', (await page.getByTestId('nav-half-1').getAttribute('aria-selected')) === 'true');
+    }
+    await noScroll(page, 'nav @iPad mini landscape');
+    await page.setViewportSize({ width: 744, height: 1133 });
+    await page.waitForTimeout(600);
+    check('iPad mini portrait: rotate message', (await page.getByText('横向きにしてください', { exact: false }).count()) === 1);
+
     // iPad 表示（縦向き）：パネルが上、シートが下。シートはタッチを受けない
     await page.setViewportSize(PAD);
     await page.goto(`${BASE}/nav/${id}?pad=1`);

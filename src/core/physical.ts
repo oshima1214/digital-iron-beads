@@ -35,3 +35,13 @@ export function fitPlate(cell: number, boxW: number, boxH: number): { fits: 'ful
 export function halfRows(part: 0 | 1, rows: number): [number, number] {
   return part === 0 ? [0, rows] : [PLATE_CELLS - rows, PLATE_CELLS];
 }
+
+/**
+ * iPad の画面配置。縦向きは 'stacked'（パネルが上）。横向きは、横にパネル（panelW）を置いてもプレートの幅が入るなら 'side'、
+ * 入らなければ 'compact'（上に1行の薄いパネル。iPad mini の横向きなど）。
+ */
+export function chooseStageLayout(o: { winW: number; winH: number; cell: number; panelW: number; padding?: number; gap?: number }): 'side' | 'stacked' | 'compact' {
+  if (o.winW <= o.winH) return 'stacked';
+  const stageW = o.winW - (o.padding ?? 24) - (o.gap ?? 12) - o.panelW;
+  return o.cell * PLATE_CELLS <= stageW ? 'side' : 'compact';
+}

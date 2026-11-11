@@ -1,7 +1,7 @@
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
-import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platform, Text, View } from 'react-native';
+import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platform, View } from 'react-native';
 
-import { fitPlate, halfRows, PLATE_CELLS } from '@/core/physical';
+import { fitPlate, PLATE_CELLS } from '@/core/physical';
 import { type Plate, plateSheet } from '@/core/sheet/plates';
 import type { Sheet } from '@/core/sheet/sheet';
 
@@ -10,7 +10,6 @@ import { editorStore, useEditor } from '@/state/editor';
 
 import { SelectionOverlay } from '../SelectionOverlay';
 import { SheetCanvas } from '../SheetCanvas';
-import { colors, fonts } from '../theme';
 import { sheetLayout, viewToCell } from '../sheetGeometry';
 import { clampTransform, IDENTITY, pinch, type Pt, toContent, type Transform } from '../zoom';
 import { createTouchTracker, HOLD_MS, type TouchAction, type TouchPoint } from './touchTracker';
@@ -34,11 +33,9 @@ interface Props {
   plate?: Plate | null;
   /** iPad：実寸の1マスの大きさ */
   physicalCell?: number | null;
-  half?: 0 | 1;
-  onFit?(fit: { fits: 'full' | 'half' | 'none'; rows: number }): void;
 }
 
-export function EditorCanvas({ plate = null, physicalCell = null, half = 0, onFit }: Props = {}) {
+export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) {
   const project = useEditor((s) => s.project);
   const liveVersion = useEditor((s) => s.version);
   const version = useFrameThrottled(liveVersion);
@@ -57,8 +54,10 @@ export function EditorCanvas({ plate = null, physicalCell = null, half = 0, onFi
   const full = project?.sheet;
   // iPad はプレート1枚（半分表示なら一部の行）だけを実寸で描き、マス座標にプレートの原点を足す
   const plateMode = !!(plate && physicalCell && full);
-  const fit = plateMode && box.w > 0 ? fitPlate(physicalCell!, box.w, box.h) : { fits: 'full' as const, rows: PLATE_CELLS };
-  const rows: [number, number] = fit.fits === 'half' ? halfRows(half, fit.rows) : [0, PLATE_CELLS];
+  // 編集は実物を重ねないので、プレートが実寸で丸ごと入らないとき（iPad mini など）は箱に収めて表示する
+  const physicalFits = plateMode && box.w > 0 && fitPlate(physicalCell!, box.w, box.h).fits === 'full';
+  const plateCell = physicalFits ? physicalCell! : Math.min(box.w, box.h) / PLATE_CELLS;
+  const rows: [number, number] = [0, PLATE_CELLS];
   const sheet = useMemo(
     () => (plateMode ? plateSheet(full!, plate!, rows) : full),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,13 +67,9 @@ export function EditorCanvas({ plate = null, physicalCell = null, half = 0, onFi
   const layout = !sheet
     ? { cell: 0, width: 0, height: 0 }
     : plateMode
-      ? { cell: physicalCell!, width: physicalCell! * sheet.width, height: physicalCell! * sheet.height }
+      ? { cell: plateCell, width: plateCell * sheet.width, height: plateCell * sheet.height }
       : sheetLayout(sheet, box.w, box.h);
-  const fitKey = `${fit.fits}:${fit.rows}`;
-  useEffect(() => {
-    if (plateMode) onFit?.(fit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey, plateMode]);
+
   const clamped = clampTransform(zoom, layout.width, layout.height, box.w, box.h);
   // 値が同じなら同じオブジェクトを使う（タッチの受け取りを毎回作り直さないように）
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,9 +175,7 @@ export function EditorCanvas({ plate = null, physicalCell = null, half = 0, onFi
 
   return (
     <View ref={viewRef} testID="editor-canvas" style={{ flex: 1, overflow: 'hidden' }} onLayout={onLayout} {...responder.panHandlers}>
-      {fit.fits === 'none' ? (
-        <Text style={{ fontFamily: fonts.bold, fontSize: 17, color: colors.subtext, textAlign: 'center', marginTop: 40 }}>iPad を横向きにしてください（プレートが画面に入りません）</Text>
-      ) : sheet && layout.cell > 0 && (
+      {sheet && layout.cell > 0 && (
         <View
           style={{
             position: 'absolute',

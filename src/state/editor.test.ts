@@ -208,3 +208,17 @@ test('committed changes only when an edit is committed, not on every stroke cell
   st.strokeEnd();
   expect(store.getState().committed).toBe(c0 + 1);
 });
+
+test('editor saves never overwrite nav progress written by the nav screen', async () => {
+  const { repo, store, id } = await setup();
+  // ナビ画面が進み具合を保存した（編集ストアの project.nav は古いまま）
+  const disk = await repo.load(id);
+  await repo.save({ ...disk, nav: { plateIndex: 0, colorIndex: 3 } });
+  store.getState().setColor(RED);
+  store.getState().strokeBegin([1, 1]);
+  store.getState().strokeEnd();
+  await store.getState().flush();
+  const saved = await repo.load(id);
+  expect(saved.nav).toEqual({ plateIndex: 0, colorIndex: 3 });
+  expect(saved.sheet.cells[idx(saved.sheet, 1, 1)]).toBe(RED);
+});

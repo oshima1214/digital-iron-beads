@@ -33,7 +33,11 @@ export interface NavState {
 const clamp = (v: number, max: number) => Math.max(0, Math.min(max, v));
 
 export function createNavStore(repo: ProjectRepo, now: () => Date = () => new Date(), autosaveMs = 500) {
-  const saver = createAutosaver<Project>((p) => repo.save(p), autosaveMs);
+  // ナビの保存は進み具合（nav）だけを書き込む。シートは保存済みのものを使う（編集画面の変更を上書きしないように）
+  const saver = createAutosaver<Project>(async (p) => {
+    const disk = await repo.load(p.id);
+    await repo.save({ ...disk, nav: p.nav, updatedAt: p.updatedAt });
+  }, autosaveMs);
 
   return createStore<NavState>()((set, get) => {
     /** 位置を変えて、進み具合を自動保存に予約する。 */

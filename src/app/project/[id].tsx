@@ -14,7 +14,6 @@ import { SELECTION_BAR_HEIGHT, SelectionBar } from '@/ui/editor/SelectionBar';
 import { Toolbar } from '@/ui/editor/Toolbar';
 import { OpenError } from '@/ui/OpenError';
 import { PlateMiniMap } from '@/ui/PlateMiniMap';
-import { Segmented } from '@/ui/Segmented';
 import { useDeviceLayout } from '@/ui/useDeviceLayout';
 import { colors, fonts } from '@/ui/theme';
 
@@ -39,8 +38,7 @@ export default function Editor() {
   const [showCounts, setShowCounts] = useState(false);
   const dev = useDeviceLayout();
   const [plateIndex, setPlateIndex] = useState(0);
-  const [half, setHalf] = useState<0 | 1>(0);
-  const [fit, setFit] = useState<{ fits: 'full' | 'half' | 'none'; rows: number } | null>(null);
+
 
   useEffect(() => {
     if (id && editorStore().getState().project?.id !== id) void editorStore().getState().open(id);
@@ -63,7 +61,8 @@ export default function Editor() {
   };
 
   const ready = project?.id === id;
-  const plates = ready ? platesOf(project.sheet) : [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const plates = useMemo(() => (ready ? platesOf(project.sheet) : []), [ready, project?.id, project?.sheet.width]);
   const plate = dev.isPad && plates.length > 0 ? plates[Math.min(plateIndex, plates.length - 1)] : null;
 
   // iPad：縦向きはパネルが上・シートが下、横向きはシートとパネルを左右に並べる（仕様書 §6.2）。iPhone はパネルが下。
@@ -111,19 +110,9 @@ export default function Editor() {
       </View>
       <PaletteBar />
       <Toolbar disabled={melted || !ready} />
-      {plate && (plates.length > 1 || fit?.fits === 'half') && (
+      {plate && plates.length > 1 && ready && (
         <View style={styles.plateRow}>
-          {plates.length > 1 && ready && <PlateMiniMap sheet={project.sheet} plates={plates} current={plate.index} size={side ? 160 : 112} onSelect={setPlateIndex} />}
-          {fit?.fits === 'half' && (
-            <Segmented<0 | 1>
-              options={[
-                { value: 0, label: '上半分' },
-                { value: 1, label: '下半分' },
-              ]}
-              value={half}
-              onChange={setHalf}
-            />
-          )}
+          <PlateMiniMap sheet={project.sheet} plates={plates} current={plate.index} size={side ? 160 : 112} onSelect={setPlateIndex} />
         </View>
       )}
     </View>
@@ -133,7 +122,7 @@ export default function Editor() {
       {error ? (
         <OpenError />
       ) : ready ? (
-        <EditorCanvas plate={plate} physicalCell={dev.physicalCell} half={half} onFit={setFit} />
+        <EditorCanvas plate={plate} physicalCell={dev.physicalCell} />
       ) : (
         <ActivityIndicator style={{ flex: 1 }} />
       )}

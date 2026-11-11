@@ -7,3 +7,7 @@ export const isPad: boolean =
 export const isWeb = Platform.OS === 'web';
 export const modelId: string | null = isWeb ? null : Device.modelId;
 export const modelName: string | null = isWeb ? null : Device.modelName;
+
+/** Web（自動テスト用）：?ppi=163 などで画面の細かさを指定できる（iPad mini の再現用）。 */
+export const webPpi: number | null =
+  Platform.OS === 'web' && typeof location !== 'undefined' ? Number(new URLSearchParams(location.search).get('ppi')) || null : null;

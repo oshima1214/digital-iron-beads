@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 
 import { fitPlate, halfRows, PLATE_CELLS } from '@/core/physical';
@@ -37,11 +37,14 @@ export function PlateStage({ sheet, plate, focus, mirror, half = 0, version, onF
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sub = useMemo(() => plateSheet(sheet, plate, rows), [sheet, plate, rows[0], rows[1], version]);
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    const next = { w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height };
-    setBox(next);
-    if (onFit && dev.physicalCell) onFit(fitPlate(dev.physicalCell, next.w, next.h));
-  };
+  // 大きさ・補正係数が変わるたびに、半分表示かどうかを使う側へ知らせる
+  const fitKey = `${fit.fits}:${fit.rows}`;
+  useEffect(() => {
+    onFit?.(fit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
+
+  const onLayout = (e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
 
   return (
     <View style={styles.box} onLayout={onLayout} testID={testID}>

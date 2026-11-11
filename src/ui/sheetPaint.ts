@@ -22,7 +22,7 @@ export interface PaintOptions {
   focus?: number;
 }
 
-export const NAV_OTHER = '#D1D1D6';
+export const NAV_OTHER = '#BDBDC2';
 
 /** 仕様書 §6.4 のシート描画。cell はマスの大きさ（px）。 */
 export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number, opts: PaintOptions = {}): void {
@@ -63,7 +63,7 @@ export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number, opts: P
       const cy = (y + 0.5) * cell;
       if (opts.focus !== undefined && v !== 0 && v !== opts.focus) {
         fill.setColor(Skia.Color(NAV_OTHER));
-        canvas.drawCircle(cx, cy, r * 0.4, fill);
+        canvas.drawCircle(cx, cy, r * 0.5, fill);
         continue;
       }
       fill.setColor(colorOf(v));
