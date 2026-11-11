@@ -16,3 +16,4 @@ export * from './file/project';
 export * from './util/autosave';
 export * from './physical';
 export * from './text/layout';
+export * from './file/beads';
