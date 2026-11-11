@@ -14,8 +14,10 @@ export type Tool = 'pen' | 'eraser' | 'bucket' | 'select';
 export interface EditorState {
   project: Project | null;
   error: 'open-failed' | null;
-  /** シートを変えるたびに増える（描画のきっかけ） */
+  /** シートを変えるたびに増える（描画のきっかけ。ストロークの途中も増える） */
   version: number;
+  /** 編集が確定するたびに増える（必要数やパレットの並びの再計算に使う） */
+  committed: number;
   tool: Tool;
   /** 1..32 */
   color: number;
@@ -56,6 +58,9 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
   const saver = createAutosaver<Project>((p) => repo.save(p), autosaveMs);
   let history = new History();
   let stroke: { changes: Map<number, CellChange>; last: Cell | null } | null = null;
+  // 範囲モードの「2点を指定」：1点目をタップしたら anchor、2点目のタップ後の rangeEnd で矩形を確定する
+  let anchor = false;
+  let pendingSecond = false;
 
   return createStore<EditorState>()((set, get) => {
     /** 差分をすでに適用したあとに呼ぶ：版を進め、自動保存を予約する。 */
@@ -63,7 +68,7 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
       const p = get().project;
       if (!p) return;
       const next = { ...p, updatedAt: now().toISOString() };
-      set({ project: next, version: get().version + 1, canUndo: history.canUndo, canRedo: history.canRedo });
+      set({ project: next, version: get().version + 1, committed: get().committed + 1, canUndo: history.canUndo, canRedo: history.canRedo });
       saver.schedule(next);
     };
     /** 1回の操作：差分を適用して履歴に積む。 */
@@ -90,6 +95,7 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
       project: null,
       error: null,
       version: 0,
+      committed: 0,
       tool: 'pen',
       color: BLACK,
       selection: new Set(),
@@ -111,6 +117,7 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
             project: p,
             error: null,
             version: get().version + 1,
+            committed: get().committed + 1,
             tool: 'pen',
             color: top ? top.index : BLACK,
             selection: new Set(),
@@ -138,8 +145,10 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
         if (c) strokeTo(c);
       },
       strokeMove(c) {
-        if (!stroke || !c) return;
-        strokeTo(c);
+        if (!stroke) return;
+        // シートの外に出たら線を切る（戻ってきた場所から塗り直す。内側を横切る線を引かない）
+        if (!c) stroke.last = null;
+        else strokeTo(c);
       },
       strokeEnd() {
         if (!stroke) return;
@@ -160,6 +169,14 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
         const p = get().project;
         if (!p || !c) return;
         if (get().rangeMode) {
+          const r = get().range;
+          if (r && anchor) {
+            // 2点目のタップ：1点目との矩形を選ぶ
+            set({ range: [r[0], c] });
+            anchor = false;
+            pendingSecond = true;
+            return;
+          }
           set({ range: [c, c] });
           return;
         }
@@ -178,6 +195,14 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
         const p = get().project;
         const r = get().range;
         if (!p || !r) return;
+        const same = r[0][0] === r[1][0] && r[0][1] === r[1][1];
+        if (same && !pendingSecond) {
+          // ドラッグせずに離した：1点目として残し、2点目のタップを待つ
+          anchor = true;
+          return;
+        }
+        pendingSecond = false;
+        anchor = false;
         const next = new Set(get().selection);
         for (const [x, y] of rectCells(r[0], r[1])) next.add(idx(p.sheet, x, y));
         set({ selection: next, range: null });
@@ -195,6 +220,8 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
         set({ selection: new Set() });
       },
       clearSelection() {
+        anchor = false;
+        pendingSecond = false;
         set({ selection: new Set(), range: null });
       },
 
@@ -222,6 +249,8 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
         set({ melted: !get().melted });
       },
       setRangeMode(on) {
+        anchor = false;
+        pendingSecond = false;
         set({ rangeMode: on, range: null });
       },
 

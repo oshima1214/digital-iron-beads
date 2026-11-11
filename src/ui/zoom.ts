@@ -24,7 +24,9 @@ export function toContent(t: Transform, p: Pt): Pt {
 /** 2本指の開始位置 (a0,b0) と現在位置 (a1,b1) から、開始時の中点の内容が今の中点に来るよう拡大・移動する。 */
 export function pinch(start: Transform, a0: Pt, b0: Pt, a1: Pt, b1: Pt): Transform {
   const d0 = dist(a0, b0);
-  const scale = d0 > 0 ? (start.scale * dist(a1, b1)) / d0 : start.scale;
+  // 拡大率は先に 1..8 に収める（収める前の値で移動量を計算すると、上限でシートが飛ぶ）
+  const raw = d0 > 0 ? (start.scale * dist(a1, b1)) / d0 : start.scale;
+  const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, raw));
   const c = toContent(start, mid(a0, b0));
   const m = mid(a1, b1);
   return { scale, tx: m.x - c.x * scale, ty: m.y - c.y * scale };

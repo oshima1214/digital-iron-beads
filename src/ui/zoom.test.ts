@@ -28,3 +28,11 @@ test('clampTransform centres an axis whose content is smaller than the box', () 
 test('toContent inverts the transform', () => {
   expect(toContent({ scale: 2, tx: 10, ty: -20 }, { x: 30, y: 0 })).toEqual({ x: 10, y: 10 });
 });
+
+test('pinch past the max scale keeps the content under the fingers (no jump)', () => {
+  const t = pinch({ scale: 8, tx: 0, ty: 0 }, { x: 90, y: 100 }, { x: 110, y: 100 }, { x: 80, y: 100 }, { x: 120, y: 100 });
+  expect(t.scale).toBe(8);
+  const c = toContent(t, { x: 100, y: 100 });
+  expect(c.x).toBeCloseTo(100 / 8);
+  expect(c.y).toBeCloseTo(100 / 8);
+});

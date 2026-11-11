@@ -13,14 +13,14 @@ export const PALETTE_HEIGHT = 52;
 export function PaletteBar() {
   const color = useEditor((s) => s.color);
   const project = useEditor((s) => s.project);
-  const version = useEditor((s) => s.version);
+  const committed = useEditor((s) => s.committed);
   const order = useMemo(() => {
     if (!project) return PERLER32;
     const used = countBeads(project.sheet).map((c) => c.index);
     return [...used.map((i) => PERLER32[i - 1]), ...PERLER32.filter((b) => !used.includes(b.index))];
-    // version はシートの中身の変化を知らせるため
+    // committed は編集の確定を知らせるため（ストロークの途中では並べ替えない）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, version]);
+  }, [project, committed]);
   return (
     <View style={styles.bar}>
       <FlatList

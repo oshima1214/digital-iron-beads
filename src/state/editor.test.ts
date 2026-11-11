@@ -170,3 +170,41 @@ test('initial color is the most used bead, black when empty', async () => {
   const empty = await setup();
   expect(empty.store.getState().color).toBe(BLACK);
 });
+
+test('leaving and re-entering the sheet does not paint a chord across it', async () => {
+  const { store } = await setup();
+  const st = store.getState();
+  st.setColor(RED);
+  st.strokeBegin([12, 0]);
+  st.strokeMove(null);
+  st.strokeMove([0, 12]);
+  st.strokeEnd();
+  expect(cellsOf(store).cells.filter((v) => v === RED)).toHaveLength(2);
+});
+
+test('range mode: two taps select the rectangle between them', async () => {
+  const { store } = await setup((c) => c.fill(RED));
+  const st = () => store.getState();
+  st().setTool('select');
+  st().setRangeMode(true);
+  st().tapSelect([1, 1]);
+  st().rangeEnd();
+  expect(st().selection.size).toBe(0);
+  expect(st().range).toEqual([[1, 1], [1, 1]]);
+  st().tapSelect([3, 2]);
+  st().rangeEnd();
+  expect(st().selection.size).toBe(6);
+  expect(st().range).toBeNull();
+});
+
+test('committed changes only when an edit is committed, not on every stroke cell', async () => {
+  const { store } = await setup();
+  const st = store.getState();
+  const c0 = store.getState().committed;
+  st.setColor(RED);
+  st.strokeBegin([0, 0]);
+  st.strokeMove([3, 0]);
+  expect(store.getState().committed).toBe(c0);
+  st.strokeEnd();
+  expect(store.getState().committed).toBe(c0 + 1);
+});

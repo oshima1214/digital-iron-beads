@@ -9,17 +9,24 @@ import { showMenu } from '@/ui/dialogs';
 import { CountsSheet } from '@/ui/editor/CountsSheet';
 import { EditorCanvas } from '@/ui/editor/EditorCanvas';
 import { PaletteBar } from '@/ui/editor/PaletteBar';
-import { SelectionBar } from '@/ui/editor/SelectionBar';
+import { SELECTION_BAR_HEIGHT, SelectionBar } from '@/ui/editor/SelectionBar';
 import { Toolbar } from '@/ui/editor/Toolbar';
 import { OpenError } from '@/ui/OpenError';
 import { colors, fonts } from '@/ui/theme';
+
+const HINTS = {
+  pen: 'なぞって塗る',
+  eraser: 'なぞって消す',
+  bucket: 'タップしたところとつながった同じ色をまとめて塗る',
+  select: '',
+} as const;
 
 /** ④ 編集画面 */
 export default function Editor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useEditor((s) => s.project);
   const error = useEditor((s) => s.error);
-  const version = useEditor((s) => s.version);
+  const committed = useEditor((s) => s.committed);
   const tool = useEditor((s) => s.tool);
   const mirror = useEditor((s) => s.mirror);
   const melted = useEditor((s) => s.melted);
@@ -33,8 +40,9 @@ export default function Editor() {
 
   const counts = useMemo(
     () => (project ? countBeads(project.sheet) : []),
+    // committed は編集の確定を知らせるため（ストロークの途中では再計算しない）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [project, version],
+    [project, committed],
   );
   const total = counts.reduce((a, c) => a + c.count, 0);
   const st = () => editorStore().getState();
@@ -73,7 +81,10 @@ export default function Editor() {
       </Text>
       <View style={styles.canvas}>{error ? <OpenError /> : ready ? <EditorCanvas /> : <ActivityIndicator style={{ flex: 1 }} />}</View>
       <View style={styles.panel}>
-        {tool === 'select' && !melted && <SelectionBar />}
+        {/* 選択バーの場所は常に確保する（ツールを切り替えてもシートが動かないように） */}
+        <View style={{ height: SELECTION_BAR_HEIGHT, justifyContent: 'center' }}>
+          {tool === 'select' && !melted ? <SelectionBar /> : <Text style={styles.hint}>{melted ? '完成イメージを表示中（見るだけ）' : HINTS[tool]}</Text>}
+        </View>
         <PaletteBar />
         <Toolbar disabled={melted || !ready} />
       </View>
@@ -93,5 +104,6 @@ const styles = StyleSheet.create({
   off: { opacity: 0.3 },
   stats: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, marginBottom: 4 },
   canvas: { flex: 1, backgroundColor: colors.panel, borderRadius: 12, overflow: 'hidden' },
+  hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, paddingHorizontal: 6 },
   panel: { backgroundColor: colors.panel, borderRadius: 12, paddingHorizontal: 6, marginVertical: 8 },
 });

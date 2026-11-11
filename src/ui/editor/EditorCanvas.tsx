@@ -1,4 +1,4 @@
-import { type ComponentRef, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platform, View } from 'react-native';
 
 import type { Cell } from '@/core/sheet/ops';
@@ -8,16 +8,25 @@ import { SelectionOverlay } from '../SelectionOverlay';
 import { SheetCanvas } from '../SheetCanvas';
 import { sheetLayout, viewToCell } from '../sheetGeometry';
 import { clampTransform, IDENTITY, pinch, type Pt, toContent, type Transform } from '../zoom';
+import { createTouchTracker, HOLD_MS, type TouchAction, type TouchPoint } from './touchTracker';
 
 /** iPhone だけピンチズームとドラッグでの移動を許す（iPad はプレートを重ねるので動かさない）。 */
 const CAN_ZOOM = Platform.OS === 'ios' && !Platform.isPad;
-const DOUBLE_TAP_MS = 300;
 
-type Mode = 'idle' | 'tool' | 'pinch';
+/** 値の変化を1フレームに1回までにまとめる（塗るたびにシート全体を描き直さないように）。 */
+function useFrameThrottled<T>(value: T): T {
+  const [shown, setShown] = useState(value);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(value));
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+  return shown;
+}
 
 export function EditorCanvas() {
   const project = useEditor((s) => s.project);
-  const version = useEditor((s) => s.version);
+  const liveVersion = useEditor((s) => s.version);
+  const version = useFrameThrottled(liveVersion);
   const mirror = useEditor((s) => s.mirror);
   const melted = useEditor((s) => s.melted);
   const selection = useEditor((s) => s.selection);
@@ -26,26 +35,27 @@ export function EditorCanvas() {
   const [zoom, setZoom] = useState<Transform>(IDENTITY);
   const viewRef = useRef<ComponentRef<typeof View>>(null);
   const origin = useRef({ x: 0, y: 0 });
-  const gesture = useRef<{ mode: Mode; start: Transform; a0: Pt; b0: Pt; lastTap: number; moved: boolean }>({
-    mode: 'idle',
-    start: IDENTITY,
-    a0: { x: 0, y: 0 },
-    b0: { x: 0, y: 0 },
-    lastTap: 0,
-    moved: false,
-  });
+  const tracker = useRef(createTouchTracker(CAN_ZOOM));
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinchStart = useRef<{ t: Transform; a: Pt; b: Pt } | null>(null);
 
   const sheet = project?.sheet;
   const layout = sheet ? sheetLayout(sheet, box.w, box.h) : { cell: 0, width: 0, height: 0 };
-  const t = clampTransform(zoom, layout.width, layout.height, box.w, box.h);
+  const clamped = clampTransform(zoom, layout.width, layout.height, box.w, box.h);
+  // 値が同じなら同じオブジェクトを使う（タッチの受け取りを毎回作り直さないように）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const t = useMemo(() => clamped, [clamped.scale, clamped.tx, clamped.ty]);
 
-  // PanResponder のコールバックは描画中ではなくジェスチャー中に ref と Date.now を読む。React Compiler の規則が
+  // PanResponder のコールバックは描画中ではなくジェスチャー中に ref を読む。React Compiler の規則が
   // useMemo 内のクロージャーまで「描画中のアクセス」と判定するため、このブロックだけ無効にする（CropBox と同じ）。
   /* eslint-disable react-hooks/refs, react-hooks/purity */
   const responder = useMemo(() => {
-    const point = (e: GestureResponderEvent, k = 0): Pt => {
-      const touch = e.nativeEvent.touches[k] ?? e.nativeEvent;
-      return { x: touch.pageX - origin.current.x, y: touch.pageY - origin.current.y };
+    const rel = (x: number, y: number): Pt => ({ x: x - origin.current.x, y: y - origin.current.y });
+    const touchesOf = (e: GestureResponderEvent): TouchPoint[] => {
+      const ne = e.nativeEvent;
+      // Web のマウス操作では touches が空のことがあるので、イベント自身の座標を使う
+      if (!ne.touches || ne.touches.length === 0) return [{ id: Number(ne.identifier ?? 0), p: rel(ne.pageX, ne.pageY) }];
+      return ne.touches.map((tt) => ({ id: Number(tt.identifier), p: rel(tt.pageX, tt.pageY) }));
     };
     const cellAt = (p: Pt): Cell | null => {
       if (!sheet) return null;
@@ -53,64 +63,72 @@ export function EditorCanvas() {
       return viewToCell(c.x, c.y, sheet, layout.cell, mirror);
     };
     const st = () => editorStore().getState();
-    const toolBegin = (c: Cell | null) => {
+    /** ペン・消しゴム・範囲選択は begin/move/end、バケツと1マス選択はタップで実行する。 */
+    const isDrag = () => {
       const s = st();
-      if (s.tool === 'pen' || s.tool === 'eraser') s.strokeBegin(c);
-      else if (s.tool === 'bucket') s.bucket(c);
-      else s.tapSelect(c);
+      return s.tool === 'pen' || s.tool === 'eraser' || (s.tool === 'select' && s.rangeMode);
     };
-    const toolMove = (c: Cell | null) => {
-      const s = st();
-      if (s.tool === 'pen' || s.tool === 'eraser') s.strokeMove(c);
-      else if (s.tool === 'select' && s.rangeMode) s.rangeMove(c);
+    const run = (actions: TouchAction[]) => {
+      for (const a of actions) {
+        const s = st();
+        switch (a.type) {
+          case 'begin':
+            if (!isDrag()) break;
+            if (s.tool === 'select') s.tapSelect(cellAt(a.p));
+            else s.strokeBegin(cellAt(a.p));
+            break;
+          case 'move':
+            if (!isDrag()) break;
+            if (s.tool === 'select') s.rangeMove(cellAt(a.p));
+            else s.strokeMove(cellAt(a.p));
+            break;
+          case 'end':
+            if (!isDrag()) break;
+            if (s.tool === 'select') s.rangeEnd();
+            else s.strokeEnd();
+            break;
+          case 'tap':
+            if (isDrag()) break;
+            if (s.tool === 'bucket') s.bucket(cellAt(a.p));
+            else s.tapSelect(cellAt(a.p));
+            break;
+          case 'pinchStart':
+            pinchStart.current = { t, a: a.a, b: a.b };
+            break;
+          case 'pinch':
+            if (pinchStart.current) {
+              const ps = pinchStart.current;
+              setZoom(clampTransform(pinch(ps.t, ps.a, ps.b, a.a, a.b), layout.width, layout.height, box.w, box.h));
+            }
+            break;
+          case 'resetZoom':
+            setZoom(IDENTITY);
+            break;
+        }
+      }
     };
-    const toolEnd = () => {
-      const s = st();
-      if (s.tool === 'pen' || s.tool === 'eraser') s.strokeEnd();
-      else if (s.tool === 'select' && s.rangeMode) s.rangeEnd();
-    };
-    const startPinch = (e: GestureResponderEvent) => {
-      const g = gesture.current;
-      if (g.mode === 'tool') toolEnd(); // 2本目の指が置かれたら塗りかけを確定し、以降は塗らない
-      g.mode = 'pinch';
-      g.start = t;
-      g.a0 = point(e, 0);
-      g.b0 = point(e, 1);
+    const clearHold = () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      holdTimer.current = null;
     };
     return PanResponder.create({
       onStartShouldSetPanResponder: () => !melted,
       onMoveShouldSetPanResponder: () => !melted,
       onPanResponderGrant: (e) => {
         viewRef.current?.measureInWindow((x: number, y: number) => (origin.current = { x, y }));
-        const g = gesture.current;
-        g.moved = false;
-        if (CAN_ZOOM && e.nativeEvent.touches.length >= 2) return startPinch(e);
-        g.mode = 'tool';
-        toolBegin(cellAt(point(e)));
+        const [first] = touchesOf(e);
+        run(tracker.current.start(first.id, first.p, Date.now()));
+        clearHold();
+        if (CAN_ZOOM) holdTimer.current = setTimeout(() => run(tracker.current.tick(Date.now())), HOLD_MS);
       },
-      onPanResponderMove: (e) => {
-        const g = gesture.current;
-        g.moved = true;
-        if (CAN_ZOOM && e.nativeEvent.touches.length >= 2) {
-          if (g.mode !== 'pinch') return startPinch(e);
-          setZoom(clampTransform(pinch(g.start, g.a0, g.b0, point(e, 0), point(e, 1)), layout.width, layout.height, box.w, box.h));
-          return;
-        }
-        if (g.mode === 'tool') toolMove(cellAt(point(e)));
-      },
+      onPanResponderMove: (e) => run(tracker.current.move(touchesOf(e), Date.now())),
       onPanResponderRelease: () => {
-        const g = gesture.current;
-        if (g.mode === 'tool') toolEnd();
-        if (CAN_ZOOM && g.mode === 'tool' && !g.moved) {
-          const now = Date.now();
-          if (now - g.lastTap < DOUBLE_TAP_MS) setZoom(IDENTITY); // ダブルタップでズームを戻す
-          g.lastTap = now;
-        }
-        g.mode = 'idle';
+        clearHold();
+        run(tracker.current.end(Date.now()));
       },
       onPanResponderTerminate: () => {
-        if (gesture.current.mode === 'tool') toolEnd();
-        gesture.current.mode = 'idle';
+        clearHold();
+        run(tracker.current.end(Date.now()));
       },
     });
   }, [sheet, t, layout.cell, layout.width, layout.height, box.w, box.h, mirror, melted]);
