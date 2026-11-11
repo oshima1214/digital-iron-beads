@@ -1,82 +1,109 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { Project } from '@/core/file/project';
-import { beadByIndex } from '@/core/palette/perler32';
 import { countBeads } from '@/core/sheet/counts';
-import { projectRepo } from '@/platform/projectRepo';
-import { NavBar } from '@/ui/NavBar';
-import { SheetCanvas } from '@/ui/SheetCanvas';
+import { editorStore, useEditor } from '@/state/editor';
+import { showMenu } from '@/ui/dialogs';
+import { CountsSheet } from '@/ui/editor/CountsSheet';
+import { EditorCanvas } from '@/ui/editor/EditorCanvas';
+import { PaletteBar } from '@/ui/editor/PaletteBar';
+import { SELECTION_BAR_HEIGHT, SelectionBar } from '@/ui/editor/SelectionBar';
+import { Toolbar } from '@/ui/editor/Toolbar';
+import { OpenError } from '@/ui/OpenError';
 import { colors, fonts } from '@/ui/theme';
 
-const TOP = 8;
+const HINTS = {
+  pen: 'なぞって塗る',
+  eraser: 'なぞって消す',
+  bucket: 'タップしたところとつながった同じ色をまとめて塗る',
+  select: '',
+} as const;
 
-/** M3 で編集画面になるまでの仮の作品画面：シートと必要なビーズを表示する。 */
-export default function ProjectView() {
+/** ④ 編集画面 */
+export default function Editor() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [project, setProject] = useState<Project | null>(null);
-  const [error, setError] = useState(false);
-  const [box, setBox] = useState({ w: 0, h: 0 });
+  const project = useEditor((s) => s.project);
+  const error = useEditor((s) => s.error);
+  const committed = useEditor((s) => s.committed);
+  const tool = useEditor((s) => s.tool);
+  const mirror = useEditor((s) => s.mirror);
+  const melted = useEditor((s) => s.melted);
+  const canUndo = useEditor((s) => s.canUndo);
+  const canRedo = useEditor((s) => s.canRedo);
+  const [showCounts, setShowCounts] = useState(false);
 
   useEffect(() => {
-    projectRepo
-      .load(id)
-      .then(setProject)
-      .catch(() => setError(true));
+    if (id && editorStore().getState().project?.id !== id) void editorStore().getState().open(id);
   }, [id]);
 
-  const counts = project ? countBeads(project.sheet) : [];
+  const counts = useMemo(
+    () => (project ? countBeads(project.sheet) : []),
+    // committed は編集の確定を知らせるため（ストロークの途中では再計算しない）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [project, committed],
+  );
   const total = counts.reduce((a, c) => a + c.count, 0);
-  const rest = counts.slice(TOP);
+  const st = () => editorStore().getState();
 
+  const viewMenu = async () => {
+    const i = await showMenu('表示', [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ']);
+    if (i === 0) st().toggleMirror();
+    else if (i === 1) st().toggleMelted();
+    else if (i === 2) setShowCounts(true);
+  };
+
+  const ready = project?.id === id;
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <NavBar title={project?.name ?? ''} left={{ title: '‹ ホーム', onPress: () => router.dismissTo('/') }} />
-      <View style={styles.sheet} onLayout={(e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {error ? (
-          <Text style={styles.muted}>この作品を開けませんでした</Text>
-        ) : project && box.w > 0 ? (
-          <SheetCanvas testID="project-sheet" sheet={project.sheet} width={box.w} height={box.h} />
-        ) : (
-          <ActivityIndicator />
-        )}
-      </View>
-      {project && (
-        <View style={styles.panel}>
-          <Text style={styles.heading}>
-            必要なビーズ ・ {counts.length}色 {total}粒
-          </Text>
-          <View style={styles.counts}>
-            {counts.slice(0, TOP).map((c) => {
-              const b = beadByIndex(c.index);
-              return (
-                <View key={c.index} style={styles.count}>
-                  <View style={[styles.swatch, { backgroundColor: `rgb(${b.rgb.join(',')})` }]} />
-                  <Text style={styles.countText}>
-                    {b.code} {b.name} {c.count}
-                  </Text>
-                </View>
-              );
-            })}
-            {rest.length > 0 && <Text style={styles.muted}>ほか {rest.length}色</Text>}
-          </View>
-          <Text style={styles.muted}>編集・制作ナビは次のバージョンで使えるようになります</Text>
+      <View style={styles.top}>
+        <Pressable accessibilityRole="button" onPress={() => router.dismissTo('/')} hitSlop={8} style={styles.hit}>
+          <Text style={styles.link}>‹ ホーム</Text>
+        </Pressable>
+        <Text style={styles.title} numberOfLines={1}>
+          {ready ? project.name : ''}
+        </Text>
+        <View style={styles.actions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="元に戻す" testID="undo" disabled={!canUndo} onPress={() => st().undo()} hitSlop={6} style={styles.hit}>
+            <Text style={[styles.icon, !canUndo && styles.off]}>↶</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="やり直す" testID="redo" disabled={!canRedo} onPress={() => st().redo()} hitSlop={6} style={styles.hit}>
+            <Text style={[styles.icon, !canRedo && styles.off]}>↷</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" testID="view-menu" onPress={() => void viewMenu()} hitSlop={6} style={styles.hit}>
+            <Text style={styles.link}>表示</Text>
+          </Pressable>
         </View>
-      )}
+      </View>
+      <Text style={styles.stats} testID="editor-stats">
+        {ready ? `${counts.length}色 ・ ${total}粒${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}` : ' '}
+      </Text>
+      <View style={styles.canvas}>{error ? <OpenError /> : ready ? <EditorCanvas /> : <ActivityIndicator style={{ flex: 1 }} />}</View>
+      <View style={styles.panel}>
+        {/* 選択バーの場所は常に確保する（ツールを切り替えてもシートが動かないように） */}
+        <View style={{ height: SELECTION_BAR_HEIGHT, justifyContent: 'center' }}>
+          {tool === 'select' && !melted ? <SelectionBar /> : <Text style={styles.hint}>{melted ? '完成イメージを表示中（見るだけ）' : HINTS[tool]}</Text>}
+        </View>
+        <PaletteBar />
+        <Toolbar disabled={melted || !ready} />
+      </View>
+      <CountsSheet visible={showCounts} counts={counts} onClose={() => setShowCounts(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
-  sheet: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  panel: { backgroundColor: colors.panel, borderRadius: 12, padding: 12, gap: 8, marginBottom: 12 },
-  heading: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
-  counts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  count: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 140 },
-  swatch: { width: 14, height: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.separator },
-  countText: { fontFamily: fonts.regular, fontSize: 13, color: colors.text },
-  muted: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext },
+  root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 12 },
+  top: { height: 48, flexDirection: 'row', alignItems: 'center' },
+  hit: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  link: { fontFamily: fonts.regular, fontSize: 17, color: colors.accent },
+  title: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 17, color: colors.text },
+  actions: { flexDirection: 'row', alignItems: 'center' },
+  icon: { fontSize: 22, color: colors.accent },
+  off: { opacity: 0.3 },
+  stats: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, marginBottom: 4 },
+  canvas: { flex: 1, backgroundColor: colors.panel, borderRadius: 12, overflow: 'hidden' },
+  hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, paddingHorizontal: 6 },
+  panel: { backgroundColor: colors.panel, borderRadius: 12, paddingHorizontal: 6, marginVertical: 8 },
 });

@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ProjectSummary } from '@/core/file/project';
 import { draftStore } from '@/state/draft';
+import { editorStore } from '@/state/editor';
+import { flushAll } from '@/state/lifecycle';
 import { projectsStore, useProjects } from '@/state/projects';
 import { Button } from '@/ui/Button';
 import { confirmDestructive, promptText, showMenu } from '@/ui/dialogs';
@@ -19,10 +21,11 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      // 作成中の下書きを保存して閉じてから一覧を読み直す（古い下書きが名前変更・削除を上書きしないように）
-      void draftStore()
-        .getState()
-        .close()
+      // 作成中の下書きと編集中の作品を保存して閉じてから一覧を読み直す（古い下書きが名前変更・削除を上書きしないように）
+      void flushAll(
+        () => draftStore().getState().close(),
+        () => editorStore().getState().close(),
+      )()
         .then(() => projectsStore().getState().refresh())
         .catch((e) => console.warn(e));
     }, []),

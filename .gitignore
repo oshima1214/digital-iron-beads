@@ -45,3 +45,4 @@ example
 tools/compare/out/
 tools/compare/private/
 e2e/failure.png
+e2e/failure-m3.png
