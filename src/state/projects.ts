@@ -37,9 +37,13 @@ export function createProjectsStore(repo: ProjectRepo, now: () => Date = () => n
       const t = now().toISOString();
       const copy = { ...p, id: newProjectId(), name: `${p.name} のコピー`, createdAt: t, updatedAt: t, sheet: cloneSheet(p.sheet) };
       if (p.source) {
-        const png = await fetchSource(repo, p.id, p.source.image);
-        if (png) copy.source = { ...p.source, image: await repo.saveSource(copy.id, png) };
-        else delete copy.source;
+        const image = await repo.copySource(p.id, copy.id, p.source.image);
+        if (image) copy.source = { ...p.source, image };
+        else {
+          // 元画像がなければ続きから変換できないので、編集用の作品として複製する
+          delete copy.source;
+          copy.stage = 'edit';
+        }
       }
       await repo.save(copy);
       await get().refresh();
@@ -49,16 +53,6 @@ export function createProjectsStore(repo: ProjectRepo, now: () => Date = () => n
       await get().refresh();
     },
   }));
-}
-
-/** 元画像のバイト列を読む（data: URI と file: URI の両方）。読めなければ null。 */
-async function fetchSource(repo: ProjectRepo, id: string, name: string): Promise<Uint8Array | null> {
-  try {
-    const res = await fetch(repo.sourceUri(id, name));
-    return new Uint8Array(await res.arrayBuffer());
-  } catch {
-    return null;
-  }
 }
 
 let shared: ReturnType<typeof createProjectsStore> | null = null;

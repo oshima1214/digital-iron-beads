@@ -5,11 +5,17 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import type { RgbaImage } from '@/core/convert/types';
 
 export async function loadRgba(uri: string, maxSide = 2048): Promise<RgbaImage> {
-  const ctx = ImageManipulator.manipulate(uri);
-  const probe = await ctx.renderAsync();
-  const long = Math.max(probe.width, probe.height);
-  const ref = long > maxSide ? await ctx.resize(probe.width >= probe.height ? { width: maxSide } : { height: maxSide }).renderAsync() : probe;
-  const saved = await ref.saveAsync({ format: SaveFormat.PNG, base64: true });
+  // デコードしながら縮小する（巨大な写真をフル解像度でメモリに載せない）。ネイティブの参照は必ず解放する。
+  const ctx = ImageManipulator.manipulate(uri, { maxWidth: maxSide, maxHeight: maxSide });
+  let ref: Awaited<ReturnType<typeof ctx.renderAsync>> | null = null;
+  let saved: { base64?: string };
+  try {
+    ref = await ctx.renderAsync();
+    saved = await ref.saveAsync({ format: SaveFormat.PNG, base64: true });
+  } finally {
+    ref?.release();
+    ctx.release();
+  }
   if (!saved.base64) throw new Error('image could not be encoded');
   const img = Skia.Image.MakeImageFromEncoded(Skia.Data.fromBase64(saved.base64));
   if (!img) throw new Error('image could not be decoded');

@@ -4,9 +4,10 @@ import { bytesToBase64 } from '@/core/file/base64';
 import { byUpdatedDesc, type ProjectRepo, summarize } from './projectRepo.types';
 
 /** テスト用。保存形式は本番と同じ JSON 文字列。 */
-export function createMemoryRepo(): ProjectRepo & { corrupt(id: string): void } {
+export function createMemoryRepo(): ProjectRepo & { corrupt(id: string): void; failSaves(on: boolean): void } {
   const store = new Map<string, string>();
   const sources = new Map<string, string>();
+  let failing = false;
   return {
     async list() {
       const out = [];
@@ -25,6 +26,7 @@ export function createMemoryRepo(): ProjectRepo & { corrupt(id: string): void } 
       return parseProject(json);
     },
     async save(p) {
+      if (failing) throw new Error('save failed (test)');
       store.set(p.id, serializeProject(p));
     },
     async remove(id) {
@@ -37,6 +39,15 @@ export function createMemoryRepo(): ProjectRepo & { corrupt(id: string): void } 
     },
     sourceUri(id) {
       return `data:image/png;base64,${sources.get(id) ?? ''}`;
+    },
+    async copySource(fromId, toId, name) {
+      const src = sources.get(fromId);
+      if (!src) return null;
+      sources.set(toId, src);
+      return name;
+    },
+    failSaves(on) {
+      failing = on;
     },
     corrupt(id) {
       store.set(id, '{"broken":');

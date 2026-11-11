@@ -4,6 +4,7 @@ import { FlatList, type LayoutChangeEvent, StyleSheet, Text, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ProjectSummary } from '@/core/file/project';
+import { draftStore } from '@/state/draft';
 import { projectsStore, useProjects } from '@/state/projects';
 import { Button } from '@/ui/Button';
 import { confirmDestructive, promptText, showMenu } from '@/ui/dialogs';
@@ -18,7 +19,12 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      void projectsStore().getState().refresh();
+      // 作成中の下書きを保存して閉じてから一覧を読み直す（古い下書きが名前変更・削除を上書きしないように）
+      void draftStore()
+        .getState()
+        .close()
+        .then(() => projectsStore().getState().refresh())
+        .catch((e) => console.warn(e));
     }, []),
   );
 

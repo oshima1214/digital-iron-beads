@@ -10,6 +10,7 @@ import { Button } from '@/ui/Button';
 import { CropBox } from '@/ui/CropBox';
 import { LabeledSlider } from '@/ui/LabeledSlider';
 import { NavBar } from '@/ui/NavBar';
+import { OpenError } from '@/ui/OpenError';
 import { RgbaView } from '@/ui/RgbaView';
 import { colors } from '@/ui/theme';
 
@@ -17,7 +18,8 @@ const PREVIEW_MAX = 512;
 
 export default function Prepare() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ready = useDraftFor(id);
+  const status = useDraftFor(id);
+  const ready = status === 'ready';
   const image = useDraft((s) => s.image);
   const source = useDraft((s) => s.project?.source);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -47,7 +49,9 @@ export default function Prepare() {
         right={{ title: '次へ', testID: 'prepare-next', disabled: !ready, onPress: () => router.push({ pathname: '/new/convert', params: { id } }) }}
       />
       <View style={styles.imageArea} onLayout={(e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {!ready || !shown || !image || !rect ? (
+        {status === 'error' ? (
+          <OpenError />
+        ) : !ready || !shown || !image || !rect ? (
           <ActivityIndicator />
         ) : (
           display.w > 0 && (

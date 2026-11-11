@@ -41,4 +41,10 @@ export const projectRepo: ProjectRepo = {
   sourceUri(id) {
     return `data:image/png;base64,${localStorage.getItem(SRC + id) ?? ''}`;
   },
+  async copySource(fromId, toId, name) {
+    const v = localStorage.getItem(SRC + fromId);
+    if (!v) return null;
+    localStorage.setItem(SRC + toId, v);
+    return name;
+  },
 };

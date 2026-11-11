@@ -1,4 +1,6 @@
 import type { RgbaImage } from '@/core/convert/types';
+import { createProject } from '@/core/file/project';
+import { createSheet } from '@/core/sheet/sheet';
 import { drawRect, solid } from '@/core/convert/testing';
 import { createMemoryRepo } from '@/platform/memoryRepo';
 
@@ -98,4 +100,37 @@ test('changing crop or adjust invalidates the preview', async () => {
   store.getState().convertPreview('fast');
   store.getState().setAdjust(10, 0);
   expect(store.getState().preview).toBeNull();
+});
+
+test('close() flushes pending changes and clears the draft (Home re-entry)', async () => {
+  const { repo, store, img } = setup();
+  const id = await store.getState().startFromImage(img, '作品 1');
+  store.getState().setSettings({ size: 116 });
+  await store.getState().close();
+  expect((await repo.load(id)).source?.convert.size).toBe(116);
+  expect(store.getState().project).toBeNull();
+  expect(store.getState().image).toBeNull();
+});
+
+test('open() of a missing project sets an error instead of hanging', async () => {
+  const { store } = setup();
+  await store.getState().open('does-not-exist');
+  expect(store.getState().error).toBe('open-failed');
+  expect(store.getState().project).toBeNull();
+});
+
+test('open() of a project without source sets an error', async () => {
+  const { repo, store } = setup();
+  const p = createProject('x', createSheet(13, 13), new Date());
+  p.stage = 'setup';
+  await repo.save(p);
+  await store.getState().open(p.id);
+  expect(store.getState().error).toBe('open-failed');
+});
+
+test('finish() rejects when the save fails', async () => {
+  const { repo, store, img } = setup();
+  await store.getState().startFromImage(img, '作品 1');
+  repo.failSaves(true);
+  await expect(store.getState().finish()).rejects.toThrow();
 });

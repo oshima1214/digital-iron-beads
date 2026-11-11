@@ -1,3 +1,4 @@
+import { defaultConvertSettings } from '@/core/convert/types';
 import { createProject } from '@/core/file/project';
 import { createSheet } from '@/core/sheet/sheet';
 import { createMemoryRepo } from '@/platform/memoryRepo';
@@ -41,4 +42,24 @@ test('rename ignores blank names', async () => {
   const { store, p } = await setup();
   await store.getState().rename(p.id, '   ');
   expect(store.getState().items[0].name).toBe('ねこ');
+});
+
+test('duplicate copies the source image inside the repo and keeps the stage', async () => {
+  const { store, repo, p } = await setup();
+  await repo.saveSource(p.id, new Uint8Array([1, 2, 3]));
+  await repo.save({ ...p, stage: 'setup', source: { image: 'source.png', brightness: 0, contrast: 0, convert: defaultConvertSettings(13) } });
+  await store.getState().duplicate(p.id);
+  const copy = store.getState().items.find((i) => i.id !== p.id)!;
+  const loaded = await repo.load(copy.id);
+  expect(loaded.stage).toBe('setup');
+  expect(repo.sourceUri(copy.id, 'source.png')).toBe(repo.sourceUri(p.id, 'source.png'));
+});
+
+test('duplicate of a setup project whose source is missing becomes stage edit without source', async () => {
+  const { store, repo, p } = await setup();
+  await repo.save({ ...p, stage: 'setup', source: { image: 'source.png', brightness: 0, contrast: 0, convert: defaultConvertSettings(13) } });
+  await store.getState().duplicate(p.id);
+  const copy = await repo.load(store.getState().items.find((i) => i.id !== p.id)!.id);
+  expect(copy.stage).toBe('edit');
+  expect(copy.source).toBeUndefined();
 });

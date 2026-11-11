@@ -11,7 +11,9 @@ import { draftStore, useDraft } from '@/state/draft';
 import { useDraftFor } from '@/state/useDraftFor';
 import { BeadOnePicker, BeadSetPicker, beadSetLabel } from '@/ui/BeadPicker';
 import { LabeledSlider } from '@/ui/LabeledSlider';
+import { notify } from '@/ui/dialogs';
 import { NavBar } from '@/ui/NavBar';
+import { OpenError } from '@/ui/OpenError';
 import { Segmented } from '@/ui/Segmented';
 import { RowValue, SettingRow } from '@/ui/SettingRow';
 import { SheetCanvas } from '@/ui/SheetCanvas';
@@ -33,7 +35,8 @@ const DEFAULT_TWO = { dark: idx('5018'), light: idx('5003'), threshold: 0.5 };
 
 export default function Convert() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ready = useDraftFor(id);
+  const status = useDraftFor(id);
+  const ready = status === 'ready';
   const settings = useDraft((s) => s.project?.source?.convert);
   const preview = useDraft((s) => s.preview);
   const busy = useDraft((s) => s.busy);
@@ -66,8 +69,13 @@ export default function Convert() {
   };
 
   const done = async () => {
-    const pid = await draftStore().getState().finish();
-    router.replace({ pathname: '/project/[id]', params: { id: pid } });
+    try {
+      const pid = await draftStore().getState().finish();
+      router.replace({ pathname: '/project/[id]', params: { id: pid } });
+    } catch (e) {
+      console.warn(e);
+      notify('保存できませんでした', '端末の空き容量を確認して、もう一度「完了」を押してください。');
+    }
   };
 
   const counts = preview ? countBeads(preview) : [];
@@ -82,7 +90,13 @@ export default function Convert() {
         right={{ title: '完了', testID: 'convert-done', disabled: !ready || busy || !preview, onPress: () => void done() }}
       />
       <View style={styles.preview} onLayout={(e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {preview && box.w > 0 ? <SheetCanvas testID="convert-preview" sheet={preview} width={box.w} height={box.h} /> : <ActivityIndicator />}
+        {status === 'error' ? (
+          <OpenError />
+        ) : preview && box.w > 0 ? (
+          <SheetCanvas testID="convert-preview" sheet={preview} width={box.w} height={box.h} />
+        ) : (
+          <ActivityIndicator />
+        )}
         {(converting || busy) && <ActivityIndicator style={styles.spinner} />}
       </View>
       <Text style={styles.stats} testID="convert-stats">

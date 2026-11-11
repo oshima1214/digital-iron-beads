@@ -19,6 +19,8 @@ export interface DraftState {
   image: RgbaImage | null;
   preview: Sheet | null;
   busy: boolean;
+  /** open に失敗したとき 'open-failed' */
+  error: 'open-failed' | null;
   startFromImage(img: RgbaImage, name: string): Promise<string>;
   open(id: string): Promise<void>;
   setCrop(rect: CropRect | undefined): void;
@@ -29,6 +31,8 @@ export interface DraftState {
   convertPreview(quality: 'fast' | 'full'): void;
   finish(): Promise<string>;
   flush(): Promise<void>;
+  /** 予約中の保存を済ませてから下書きを空にする（ホームに戻ったとき）。 */
+  close(): Promise<void>;
 }
 
 export const FAST_CELL_PX = 2;
@@ -51,6 +55,7 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
       image: null,
       preview: null,
       busy: false,
+      error: null,
 
       async startFromImage(img, name) {
         const p = createProject(name, createSheet(29, 29), now());
@@ -59,15 +64,22 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
         p.source = { image, brightness: 0, contrast: 0, convert: defaultConvertSettings(29) };
         await repo.save(p);
         processedCache = null;
-        set({ project: p, image: img, preview: null });
+        set({ project: p, image: img, preview: null, error: null });
         return p.id;
       },
 
       async open(id) {
-        const p = await repo.load(id);
-        const img = p.source ? await io.load(repo.sourceUri(id, p.source.image)) : null;
+        await saver.flush();
         processedCache = null;
-        set({ project: p, image: img, preview: null });
+        try {
+          const p = await repo.load(id);
+          if (!p.source) throw new Error('project has no source image');
+          const img = await io.load(repo.sourceUri(id, p.source.image));
+          set({ project: p, image: img, preview: null, error: null });
+        } catch (e) {
+          console.warn('could not open draft', e);
+          set({ project: null, image: null, preview: null, error: 'open-failed' });
+        }
       },
 
       setCrop(rect) {
@@ -116,6 +128,7 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
           set({ project: done, preview: sheet });
           saver.schedule(done);
           await saver.flush();
+          if (saver.pending) throw new Error('could not save the project', { cause: saver.lastError });
           return done.id;
         } finally {
           set({ busy: false });
@@ -123,6 +136,12 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
       },
 
       flush: () => saver.flush(),
+
+      async close() {
+        await saver.flush();
+        processedCache = null;
+        set({ project: null, image: null, preview: null, error: null });
+      },
     };
   });
 }

@@ -57,4 +57,10 @@ export const projectRepo: ProjectRepo = {
   sourceUri(id, name) {
     return new File(root(), id, name).uri;
   },
+  async copySource(fromId, toId, name) {
+    const src = new File(root(), fromId, name);
+    if (!src.exists) return null;
+    src.copySync(new File(projectDir(toId), name), { overwrite: true });
+    return name;
+  },
 };

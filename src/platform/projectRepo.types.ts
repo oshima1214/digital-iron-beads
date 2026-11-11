@@ -10,6 +10,8 @@ export interface ProjectRepo {
   saveSource(id: string, png: Uint8Array): Promise<string>;
   /** 保存した元画像を表示・読み込みに使う URI。 */
   sourceUri(id: string, name: string): string;
+  /** 元画像を別の作品へコピーする。元画像がなければ null。 */
+  copySource(fromId: string, toId: string, name: string): Promise<string | null>;
 }
 
 export function summarize(p: Project): ProjectSummary {
