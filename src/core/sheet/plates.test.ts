@@ -1,4 +1,4 @@
-import { plateCell, plateGrid, platesOf, plateSheet } from './plates';
+import { flipX, mirrorPlateIndex, plateCell, plateGrid, platesOf, plateSheet } from './plates';
 import { createSheet, idx } from './sheet';
 
 test('plateGrid', () => {
@@ -44,4 +44,20 @@ test('plateSheet with a row range keeps only those rows', () => {
   const sub = plateSheet(s, platesOf(s)[0], [8, 29]);
   expect([sub.width, sub.height]).toEqual([29, 21]);
   expect(sub.cells[12 * 29]).toBe(9);
+});
+
+test('mirrorPlateIndex maps mirrored columns (visualPlate)', () => {
+  const p58 = platesOf(createSheet(58, 58));
+  expect([0, 1, 2, 3].map((i) => mirrorPlateIndex(p58, i))).toEqual([1, 0, 3, 2]);
+  const p116 = platesOf(createSheet(116, 116));
+  expect(mirrorPlateIndex(p116, 0)).toBe(3);
+  expect(mirrorPlateIndex(p116, 4)).toBe(7);
+  expect(mirrorPlateIndex(p116, 6)).toBe(5);
+  expect(mirrorPlateIndex(platesOf(createSheet(29, 29)), 0)).toBe(0);
+});
+
+test('flipX mirrors columns', () => {
+  const s = createSheet(13, 13);
+  s.cells[idx(s, 0, 2)] = 4;
+  expect(flipX(s).cells[idx(s, 12, 2)]).toBe(4);
 });

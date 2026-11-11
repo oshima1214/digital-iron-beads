@@ -40,3 +40,19 @@ export function plateSheet(sheet: Sheet, plate: Plate, rows: [number, number] = 
   }
   return out;
 }
+
+/** シート全体を左右反転したとき、見た目で同じ位置にくるプレートの番号（同じ行で列を cols-1-col にしたもの）。 */
+export function mirrorPlateIndex(plates: Plate[], i: number): number {
+  const p = plates[i];
+  if (!p) return i;
+  const cols = Math.max(...plates.map((q) => q.col)) + 1;
+  const target = plates.find((q) => q.row === p.row && q.col === cols - 1 - p.col);
+  return target ? target.index : i;
+}
+
+/** 左右反転したシートのコピー（サムネイル用）。 */
+export function flipX(sheet: Sheet): Sheet {
+  const out = createSheet(sheet.width, sheet.height);
+  for (let y = 0; y < sheet.height; y++) for (let x = 0; x < sheet.width; x++) out.cells[y * sheet.width + x] = sheet.cells[y * sheet.width + (sheet.width - 1 - x)];
+  return out;
+}
