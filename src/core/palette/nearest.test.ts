@@ -32,3 +32,16 @@ test('nearestToOklab exact match', () => {
 test('empty allowed set throws', () => {
   expect(() => buildNearestLut([])).toThrow();
 });
+
+test('near-black and grays map to achromatic beads, not brown', () => {
+  const lut = buildNearestLut(ALL32);
+  expect(nearestIndex(lut, 20, 20, 20)).toBe(beadIdx('5018'));
+  expect(['5018', '5092']).toContain(PERLER32[nearestIndex(lut, 40, 40, 40) - 1].code);
+  expect(['5017', '5092']).toContain(PERLER32[nearestIndex(lut, 110, 110, 110) - 1].code);
+  expect(nearestIndex(lut, 74, 46, 28)).toBe(beadIdx('5012')); // 色味のある焦げ茶はそのまま
+});
+
+test('achromatic lock falls back to all allowed beads when none are achromatic', () => {
+  const lut = buildNearestLut([beadIdx('5005'), beadIdx('5008')]);
+  expect([beadIdx('5005'), beadIdx('5008')]).toContain(nearestIndex(lut, 20, 20, 20));
+});

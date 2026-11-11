@@ -1,6 +1,15 @@
+import { srgbToOklab } from '../color/oklab';
+import { PERLER32 } from '../palette/perler32';
+
+/** 孤立マスでも、多数派との明るさの差 (OKLab ΔL) がこれ以上なら残す（瞳のハイライトなど）。 */
+export const HIGHLIGHT_DL = 0.5;
+
+const BEAD_L = new Float32Array(33);
+for (const b of PERLER32) BEAD_L[b.index] = srgbToOklab(...b.rgb)[0];
+
 /**
  * 上下左右に同じ値がない孤立マスを、周り8マスの多数派（背景 0 を含む）に置き換える。
- * strength 回くり返す。protect=1 のマスは対象外。
+ * strength 回くり返す。protect=1 のマスと、多数派のビーズとの明るさの差が HIGHLIGHT_DL 以上のマスは対象外。
  */
 export function denoise(cells: Uint8Array, w: number, h: number, strength: 0 | 1 | 2, protect: Uint8Array | null): void {
   const votes = new Uint8Array(33);
@@ -38,6 +47,7 @@ export function denoise(cells: Uint8Array, w: number, h: number, strength: 0 | 1
             bestN = votes[k];
           }
         }
+        if (v !== 0 && best !== 0 && Math.abs(BEAD_L[v] - BEAD_L[best]) >= HIGHLIGHT_DL) continue;
         cells[i] = best;
       }
     }

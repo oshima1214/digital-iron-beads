@@ -32,7 +32,7 @@ export function defaultConvertSettings(size: SheetSize = 29): ConvertSettings {
     noise: 1,
     removeBackground: true,
     backgroundTolerance: 0.08,
-    lineThreshold: 0.25,
+    lineThreshold: 0.15,
     dither: false,
   };
 }
