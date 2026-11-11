@@ -5,21 +5,27 @@ import { View } from 'react-native';
 import type { Sheet } from '@/core/sheet/sheet';
 
 import { sheetLayout } from './sheetGeometry';
-import { paintSheet } from './sheetPaint';
+import { type PaintOptions, paintSheet } from './sheetPaint';
 
 interface Props {
   sheet: Sheet;
   /** 描画に使える箱の大きさ。シートはこの中に収まる最大の正方形マスで中央に描く。 */
   width: number;
   height: number;
+  mirror?: boolean;
+  styleMode?: PaintOptions['style'];
+  /** シートをその場で書き換えたときに増やす（同じ参照でも描き直す） */
+  version?: number;
   testID?: string;
 }
 
-export function SheetCanvas({ sheet, width, height, testID }: Props) {
+export function SheetCanvas({ sheet, width, height, mirror, styleMode, version = 0, testID }: Props) {
   const layout = sheetLayout(sheet, width, height);
   const picture = useMemo(
-    () => createPicture((c) => paintSheet(c, sheet, layout.cell), { width: layout.width, height: layout.height }),
-    [sheet, layout.cell, layout.width, layout.height],
+    () => createPicture((c) => paintSheet(c, sheet, layout.cell, { mirror, style: styleMode }), { width: layout.width, height: layout.height }),
+    // version はシートの中身が変わったことを知らせるためだけの依存
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sheet, layout.cell, layout.width, layout.height, mirror, styleMode, version],
   );
   return (
     <View testID={testID} style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>

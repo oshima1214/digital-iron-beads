@@ -13,8 +13,20 @@ export const SHEET_COLORS = {
 
 const hex = (rgb: readonly number[]) => `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 
+export interface PaintOptions {
+  /** 左右反転（表示だけ） */
+  mirror?: boolean;
+  /** bead = 通常、melted = 完成イメージ（アイロン後） */
+  style?: 'bead' | 'melted';
+}
+
 /** 仕様書 §6.4 のシート描画。cell はマスの大きさ（px）。 */
-export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number): void {
+export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number, opts: PaintOptions = {}): void {
+  if (opts.style === 'melted') {
+    paintMelted(canvas, sheet, cell, !!opts.mirror);
+    return;
+  }
+  const mx = (x: number) => (opts.mirror ? sheet.width - 1 - x : x);
   const W = sheet.width * cell;
   const H = sheet.height * cell;
   const fill = Skia.Paint();
@@ -43,7 +55,7 @@ export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number): void {
   for (let y = 0; y < sheet.height; y++) {
     for (let x = 0; x < sheet.width; x++) {
       const v = sheet.cells[y * sheet.width + x];
-      const cx = (x + 0.5) * cell;
+      const cx = (mx(x) + 0.5) * cell;
       const cy = (y + 0.5) * cell;
       fill.setColor(colorOf(v));
       if (v === 0) {
@@ -69,6 +81,28 @@ export function paintSheet(canvas: SkCanvas, sheet: Sheet, cell: number): void {
   plate.setColor(Skia.Color(SHEET_COLORS.plate));
   for (let i = PLATE; i < sheet.width; i += PLATE) canvas.drawLine(i * cell, 0, i * cell, H, plate);
   for (let i = PLATE; i < sheet.height; i += PLATE) canvas.drawLine(0, i * cell, W, i * cell, plate);
+}
+
+/** 完成イメージ：ビーズが溶けてつながった見た目。角の丸い四角形と中央の穴。グリッドなし。 */
+function paintMelted(canvas: SkCanvas, sheet: Sheet, cell: number, mirror: boolean): void {
+  const fill = Skia.Paint();
+  fill.setAntiAlias(true);
+  fill.setColor(Skia.Color(SHEET_COLORS.background));
+  canvas.drawRect(Skia.XYWHRect(0, 0, sheet.width * cell, sheet.height * cell), fill);
+  const hole = Skia.Paint();
+  hole.setAntiAlias(true);
+  hole.setColor(Skia.Color('rgba(0,0,0,0.18)'));
+  const radius = cell * 0.25;
+  for (let y = 0; y < sheet.height; y++) {
+    for (let x = 0; x < sheet.width; x++) {
+      const v = sheet.cells[y * sheet.width + x];
+      if (v === 0) continue;
+      const dx = mirror ? sheet.width - 1 - x : x;
+      fill.setColor(Skia.Color(hex(beadByIndex(v).rgb)));
+      canvas.drawRRect(Skia.RRectXY(Skia.XYWHRect(dx * cell, y * cell, cell, cell), radius, radius), fill);
+      canvas.drawCircle((dx + 0.5) * cell, (y + 0.5) * cell, cell * 0.09, hole);
+    }
+  }
 }
 
 /** 1マス1ピクセルの RGBA（サムネイル用）。背景は白。 */
