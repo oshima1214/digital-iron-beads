@@ -14,10 +14,15 @@ npm run typecheck   # 型チェック
 npm run lint        # ESLint（src/core は React Native 非依存を強制）
 npm test            # Jest
 npm run web:export  # Web 版を dist/ に出力（自動テスト用）
+npm run e2e:web     # Web 版の E2E（Playwright。この開発環境ではグローバルの playwright を使う）
 npm start           # 開発サーバ
 ```
 
 比較ハーネス（M1 で追加）: `npm run fixtures && npm run compare` → `tools/compare/out/index.html`
+
+## 実機での確認
+
+Skia などのネイティブモジュールを使うため、Expo Go ではなく開発用ビルドで動かします。マイルストーンごとの確認項目は `docs/checklists/` にあります。
 
 ## ビルド・提出（EAS）
 
