@@ -3,41 +3,13 @@
  * process_uploaded_image → create_bead_sheet / create_extra_large_bead_sheet の流れ。
  */
 import type { RgbaImage } from '../../src/core/convert/types';
+import { resizeArea } from '../../src/core/image/adjust';
+
+export { resizeArea };
 import { BASIC16, ALL32, beadByIndex } from '../../src/core/palette/perler32';
 import { createSheet, type Sheet, type SheetSize } from '../../src/core/sheet/sheet';
 
 const CANVAS = 930;
-
-/** 面積平均リサイズ（拡大時は最近傍に近い挙動）。 */
-export function resizeArea(img: RgbaImage, W: number, H: number): RgbaImage {
-  const out = new Uint8ClampedArray(W * H * 4);
-  const fx = img.width / W;
-  const fy = img.height / H;
-  for (let y = 0; y < H; y++) {
-    const y0 = y * fy;
-    const y1 = (y + 1) * fy;
-    for (let x = 0; x < W; x++) {
-      const x0 = x * fx;
-      const x1 = (x + 1) * fx;
-      const acc = [0, 0, 0, 0];
-      let ws = 0;
-      for (let sy = Math.floor(y0); sy < Math.ceil(y1); sy++) {
-        const wy = Math.min(y1, sy + 1) - Math.max(y0, sy);
-        if (wy <= 0) continue;
-        for (let sx = Math.floor(x0); sx < Math.ceil(x1); sx++) {
-          const wx = Math.min(x1, sx + 1) - Math.max(x0, sx);
-          if (wx <= 0) continue;
-          const w = wx * wy;
-          const si = (Math.min(img.height - 1, sy) * img.width + Math.min(img.width - 1, sx)) * 4;
-          for (let c = 0; c < 4; c++) acc[c] += img.data[si + c] * w;
-          ws += w;
-        }
-      }
-      for (let c = 0; c < 4; c++) out[(y * W + x) * 4 + c] = acc[c] / ws;
-    }
-  }
-  return { width: W, height: H, data: out };
-}
 
 /** 長辺 930 にリサイズして 930×930 の黒キャンバスの左上に置く（アルファは捨てる＝V7 の RGB 変換相当）。 */
 function toCanvas(img: RgbaImage): RgbaImage {
