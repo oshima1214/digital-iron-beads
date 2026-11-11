@@ -13,3 +13,4 @@ export * from './convert/types';
 export { convertImage } from './convert/convert';
 export * from './image/adjust';
 export * from './file/project';
+export * from './util/autosave';
