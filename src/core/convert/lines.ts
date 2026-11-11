@@ -1,4 +1,4 @@
-import { srgbToOklab } from '../color/oklab';
+import { imageToOklab } from '../color/oklab';
 import type { RgbaImage } from './types';
 
 export const LINE_CONTRAST = 0.12;
@@ -8,11 +8,12 @@ export const LINE_MAX_L = 0.5;
  * 輪郭線マスク（1 = 線）。L < mean5x5(L) - 0.12 かつ L < 0.5。
  * 背景ピクセルは対象外で、平均の計算にも含めない。
  */
-export function lineMask(img: RgbaImage, bg: Uint8Array): Uint8Array {
+export function lineMask(img: RgbaImage, bg: Uint8Array, labCache?: Float32Array): Uint8Array {
   const { width: w, height: h, data } = img;
   const n = w * h;
+  const lab = labCache ?? imageToOklab(data, n);
   const L = new Float32Array(n);
-  for (let i = 0; i < n; i++) L[i] = srgbToOklab(data[i * 4], data[i * 4 + 1], data[i * 4 + 2])[0];
+  for (let i = 0; i < n; i++) L[i] = lab[i * 3];
 
   // 背景を除いた L と個数の積分画像で 5x5 平均を求める
   const W1 = w + 1;

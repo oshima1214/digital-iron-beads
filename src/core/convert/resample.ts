@@ -15,29 +15,26 @@ export function fitToWork(
   const cellsH = Math.max(1, Math.min(size, Math.round(img.height * scale)));
   const W = cellsW * cellPx;
   const H = cellsH * cellPx;
+  const xs = spans(img.width, W);
+  const ys = spans(img.height, H);
   const out = new Uint8ClampedArray(W * H * 4);
-  const fx = img.width / W;
-  const fy = img.height / H;
   const src = img.data;
+  const sw = img.width;
   for (let y = 0; y < H; y++) {
-    const y0 = y * fy;
-    const y1 = (y + 1) * fy;
+    const ry = ys[y];
     for (let x = 0; x < W; x++) {
-      const x0 = x * fx;
-      const x1 = (x + 1) * fx;
+      const rx = xs[x];
       let r = 0;
       let g = 0;
       let b = 0;
       let a = 0;
       let wsum = 0;
-      for (let sy = Math.floor(y0); sy < Math.ceil(y1); sy++) {
-        const wy = Math.min(y1, sy + 1) - Math.max(y0, sy);
-        if (wy <= 0) continue;
-        for (let sx = Math.floor(x0); sx < Math.ceil(x1); sx++) {
-          const wx = Math.min(x1, sx + 1) - Math.max(x0, sx);
-          if (wx <= 0) continue;
-          const w = wx * wy;
-          const si = (sy * img.width + sx) * 4;
+      for (let ky = 0; ky < ry.idx.length; ky++) {
+        const wy = ry.w[ky];
+        const row = ry.idx[ky] * sw;
+        for (let kx = 0; kx < rx.idx.length; kx++) {
+          const w = rx.w[kx] * wy;
+          const si = (row + rx.idx[kx]) * 4;
           r += src[si] * w;
           g += src[si + 1] * w;
           b += src[si + 2] * w;
@@ -53,4 +50,29 @@ export function fitToWork(
     }
   }
   return { work: { width: W, height: H, data: out }, cellsW, cellsH };
+}
+
+interface Span {
+  idx: number[];
+  w: number[];
+}
+
+/** 出力 n 画素それぞれが覆う入力 [0, len) の区間（面積平均の重み）。 */
+function spans(len: number, n: number): Span[] {
+  const f = len / n;
+  const out: Span[] = [];
+  for (let o = 0; o < n; o++) {
+    const a = o * f;
+    const b = (o + 1) * f;
+    const s: Span = { idx: [], w: [] };
+    for (let k = Math.floor(a); k < Math.ceil(b); k++) {
+      const w = Math.min(b, k + 1) - Math.max(a, k);
+      if (w > 0) {
+        s.idx.push(Math.min(len - 1, k));
+        s.w.push(w);
+      }
+    }
+    out.push(s);
+  }
+  return out;
 }

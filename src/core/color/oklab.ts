@@ -1,9 +1,17 @@
 export type Rgb = readonly [number, number, number];
 export type Oklab = readonly [number, number, number];
 
-function toLinear(c: number): number {
+function toLinearExact(c: number): number {
   const v = c / 255;
   return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+const LINEAR_LUT = new Float64Array(256);
+for (let i = 0; i < 256; i++) LINEAR_LUT[i] = toLinearExact(i);
+
+/** 整数 0..255 は表引き、小数（平均色など）は正確に計算する。 */
+function toLinear(c: number): number {
+  return Number.isInteger(c) && c >= 0 && c <= 255 ? LINEAR_LUT[c] : toLinearExact(c);
 }
 
 /** sRGB (0..255) → OKLab (Björn Ottosson). */
@@ -27,4 +35,16 @@ export function oklabDist2(a: Oklab, b: Oklab): number {
   const d1 = a[1] - b[1];
   const d2 = a[2] - b[2];
   return d0 * d0 + d1 * d1 + d2 * d2;
+}
+
+/** RGBA 画像の各ピクセルを OKLab にした Float32Array（長さ w*h*3）。 */
+export function imageToOklab(data: Uint8ClampedArray, n: number): Float32Array {
+  const out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const c = srgbToOklab(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+    out[i * 3] = c[0];
+    out[i * 3 + 1] = c[1];
+    out[i * 3 + 2] = c[2];
+  }
+  return out;
 }

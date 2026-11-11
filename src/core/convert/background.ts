@@ -1,8 +1,8 @@
-import { type Oklab, oklabDist2, srgbToOklab } from '../color/oklab';
+import { imageToOklab } from '../color/oklab';
 import type { RgbaImage } from './types';
 
 /** 外周ピクセルで最も多い色（RGB 各4ビットのビン）の平均を OKLab で返す。 */
-function dominantBorderColor(img: RgbaImage, lab: Oklab[]): Oklab | null {
+function dominantBorderColor(img: RgbaImage, lab: Float32Array): [number, number, number] | null {
   const { width: w, height: h, data } = img;
   const bins = new Map<number, number[]>();
   const add = (i: number) => {
@@ -27,9 +27,9 @@ function dominantBorderColor(img: RgbaImage, lab: Oklab[]): Oklab | null {
   let A = 0;
   let B = 0;
   for (const i of best) {
-    L += lab[i][0];
-    A += lab[i][1];
-    B += lab[i][2];
+    L += lab[i * 3];
+    A += lab[i * 3 + 1];
+    B += lab[i * 3 + 2];
   }
   return [L / best.length, A / best.length, B / best.length];
 }
@@ -41,24 +41,41 @@ function dominantBorderColor(img: RgbaImage, lab: Oklab[]): Oklab | null {
  *   4近傍で広げる。隣との ΔE ≤ tol かつ背景色との ΔE ≤ 2*tol なら背景。
  *   画像の端に接したオブジェクトは、背景色と違えば消えない。
  */
-export function backgroundMask(img: RgbaImage, removeBackground: boolean, tolerance: number): Uint8Array {
+export function backgroundMask(
+  img: RgbaImage,
+  removeBackground: boolean,
+  tolerance: number,
+  labCache?: Float32Array,
+): Uint8Array {
   const { width: w, height: h, data } = img;
   const n = w * h;
   const mask = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (data[i * 4 + 3] < 128) mask[i] = 1;
   if (!removeBackground) return mask;
 
-  const lab: Oklab[] = new Array(n);
-  for (let i = 0; i < n; i++) lab[i] = srgbToOklab(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+  const lab = labCache ?? imageToOklab(data, n);
+  const d2 = (i: number, j: number) => {
+    const a = lab[i * 3] - lab[j * 3];
+    const b = lab[i * 3 + 1] - lab[j * 3 + 1];
+    const c = lab[i * 3 + 2] - lab[j * 3 + 2];
+    return a * a + b * b + c * c;
+  };
   const ref = dominantBorderColor(img, lab);
   if (!ref) return mask;
+  const [r0, r1, r2] = ref;
+  const dRef = (j: number) => {
+    const a = r0 - lab[j * 3];
+    const b = r1 - lab[j * 3 + 1];
+    const c = r2 - lab[j * 3 + 2];
+    return a * a + b * b + c * c;
+  };
   const tol2 = tolerance * tolerance;
   const refTol2 = 4 * tol2;
   const visited = new Uint8Array(n);
   const stack: number[] = [];
 
   const seed = (i: number) => {
-    if (visited[i] || data[i * 4 + 3] < 128 || oklabDist2(ref, lab[i]) > refTol2) return;
+    if (visited[i] || data[i * 4 + 3] < 128 || dRef(i) > refTol2) return;
     visited[i] = 1;
     mask[i] = 1;
     stack.push(i);
@@ -77,7 +94,7 @@ export function backgroundMask(img: RgbaImage, removeBackground: boolean, tolera
     const y = (i - x) / w;
     const visit = (ni: number) => {
       if (visited[ni] || data[ni * 4 + 3] < 128) return;
-      if (oklabDist2(lab[i], lab[ni]) > tol2 || oklabDist2(ref, lab[ni]) > refTol2) return;
+      if (d2(i, ni) > tol2 || dRef(ni) > refTol2) return;
       visited[ni] = 1;
       mask[ni] = 1;
       stack.push(ni);
