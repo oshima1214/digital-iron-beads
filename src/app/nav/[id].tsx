@@ -125,7 +125,7 @@ export default function Nav() {
       <View style={styles.row}>
         {plates.length > 1 && <PlateMiniMap sheet={project.sheet} plates={plates} current={plateIndex} size={dev.isPad ? 160 : 96} onSelect={(i) => st().setPlate(i)} />}
         {fit?.fits === 'half' && (
-          <Segmented
+          <Segmented<0 | 1>
             testID="nav-half"
             options={[
               { value: 0, label: '上半分' },
