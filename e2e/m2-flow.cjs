@@ -63,9 +63,10 @@ async function createFromPhoto(page) {
     check('convert stats shown after size 13', /使用 \d+色 ・ \d+粒/.test(stats ?? ''), stats ?? '');
 
     await page.getByTestId('convert-done').click();
-    await page.getByText(/必要なビーズ/).waitFor({ timeout: 30000 });
-    check('done → project view with bead counts', true);
-    await noScroll(page, 'project');
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    await page.waitForFunction(() => /\d+色 ・ \d+粒/.test(document.querySelector('[data-testid="editor-stats"]')?.textContent ?? ''), null, { timeout: 30000 });
+    check('done → editor with bead counts', true);
+    await noScroll(page, 'editor');
 
     await page.goto(BASE);
     await page.locator('[data-testid^="project-card-"]').first().waitFor({ timeout: 30000 });
