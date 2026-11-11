@@ -54,10 +54,14 @@ export default function Editor() {
   const st = () => editorStore().getState();
 
   const viewMenu = async () => {
-    const i = await showMenu('表示', [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ']);
+    const i = await showMenu('表示', [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ', '書き出し・共有']);
     if (i === 0) st().toggleMirror();
     else if (i === 1) st().toggleMelted();
     else if (i === 2) setShowCounts(true);
+    else if (i === 3) {
+      await st().flush(); // 最新の編集を保存してから書き出す
+      router.push({ pathname: '/export/[id]', params: { id } });
+    }
   };
 
   const ready = project?.id === id;
