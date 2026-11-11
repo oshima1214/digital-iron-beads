@@ -72,9 +72,11 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
 
       setCrop(rect) {
         update((p) => (p.source ? { ...p, source: { ...p.source, crop: rect } } : p));
+        set({ preview: null });
       },
       setAdjust(brightness, contrast) {
         update((p) => (p.source ? { ...p, source: { ...p.source, brightness, contrast } } : p));
+        set({ preview: null });
       },
       setSettings(partial) {
         update((p) => {

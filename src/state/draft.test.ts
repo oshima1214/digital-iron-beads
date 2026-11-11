@@ -87,3 +87,15 @@ test('open restores the draft from the repo (resume)', async () => {
   expect(store2.getState().project?.source?.convert.size).toBe(58);
   expect(store2.getState().image?.width).toBe(80);
 });
+
+test('changing crop or adjust invalidates the preview', async () => {
+  const { store, img } = setup();
+  await store.getState().startFromImage(img, '作品 1');
+  store.getState().convertPreview('fast');
+  expect(store.getState().preview).not.toBeNull();
+  store.getState().setCrop({ x: 0, y: 0, w: 40, h: 40 });
+  expect(store.getState().preview).toBeNull();
+  store.getState().convertPreview('fast');
+  store.getState().setAdjust(10, 0);
+  expect(store.getState().preview).toBeNull();
+});
