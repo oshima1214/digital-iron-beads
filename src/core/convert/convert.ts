@@ -25,7 +25,7 @@ export function convertImage(img: RgbaImage, s: ConvertSettings, cellPx = WORK_C
   } else if (s.preset === 'photo' && s.dither) {
     cells = ditherCells(work, cellsW, cellsH, cellPx, bg, s.allowedBeads);
   } else {
-    const lines = s.preset === 'illust' ? lineMask(work, bg, lab) : null;
+    const lines = s.preset === 'illust' ? lineMask(work, bg, lab, cellPx) : null;
     const r = assignCells(work, cellsW, cellsH, cellPx, bg, lines, s.allowedBeads, s.lineThreshold);
     cells = r.cells;
     if (lines) protect = r.lineCells;

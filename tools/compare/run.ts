@@ -20,6 +20,7 @@ function arg(name: string, def: string): string {
 
 const dir = arg('dir', path.join(__dirname, 'fixtures'));
 const size = Number(arg('size', '29')) as SheetSize;
+const lineOverride = process.argv.includes('--line') ? Number(arg('line', '0.25')) : undefined;
 const outDir = path.join(__dirname, 'out');
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -38,7 +39,9 @@ for (const f of files) {
   const t0 = Date.now();
   const legacy = legacyConvert(img, size, 32);
   const t1 = Date.now();
-  const next = convertImage(img, defaultConvertSettings(size));
+  const settings = defaultConvertSettings(size);
+  if (lineOverride !== undefined) settings.lineThreshold = lineOverride;
+  const next = convertImage(img, settings);
   const t2 = Date.now();
   const cellPx = Math.max(3, Math.floor(348 / size));
   rows.push(`<tr><th>${f}</th>
@@ -52,7 +55,7 @@ const html = `<!doctype html><meta charset="utf-8"><title>変換比較 ${size}�
 <style>body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:#f2f2f7;margin:24px}table{border-collapse:separate;border-spacing:12px}
 td{background:#fff;border-radius:12px;padding:12px;vertical-align:top;text-align:center;font-size:13px;color:#333}th{text-align:left;font-size:13px}
 img{display:block;margin:0 auto 6px;image-rendering:pixelated}.thumb{background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px}</style>
-<h1>変換比較（${size}×${size}、32色、新方式は初期設定 illust）</h1>
+<h1>変換比較（${size}×${size}、32色、新方式は初期設定 illust${lineOverride !== undefined ? `、線の割合 ${lineOverride}` : ''}）</h1>
 <table><tr><th></th><th>元画像</th><th>V7（平均＋RGB距離）</th><th>新方式（案1）</th></tr>${rows.join('\n')}</table>`;
 fs.writeFileSync(path.join(outDir, 'index.html'), html);
 console.log(`wrote ${path.join(outDir, 'index.html')}`);

@@ -60,3 +60,48 @@ test('multi-cell layout is row-major', () => {
   const { cells } = assignCells(img, 2, 1, 8, new Uint8Array(128), null, ALL32, 0.25);
   expect([...cells]).toEqual([beadIdx('5003'), beadIdx('5005')]);
 });
+
+test('lineMask detects a light, colored thin line blended with white (L > 0.5)', () => {
+  const img = solid(24, 24, [255, 255, 255, 255]);
+  drawRect(img, 11, 0, 2, 24, [147, 157, 207, 255]); // 青い線が白と半分混ざった色
+  const m = lineMask(img, new Uint8Array(24 * 24), undefined, 8);
+  expect(m[12 * 24 + 11]).toBe(1);
+  expect(m[12 * 24 + 2]).toBe(0);
+});
+
+test('line cell color comes from the darkest line pixels, not blended ones', () => {
+  const img = solid(8, 8, YELLOW);
+  drawRect(img, 2, 0, 1, 8, BLACK);
+  drawRect(img, 3, 0, 2, 8, [128, 121, 0, 255]); // 黒と黄色の中間（オリーブ）2列
+  const bg = new Uint8Array(64);
+  const lines = lineMask(img, bg, undefined, 8);
+  const { cells } = assignCells(img, 1, 1, 8, bg, lines, ALL32, 0.12);
+  expect(cells[0]).toBe(beadIdx('5018'));
+});
+
+test('gap between two line cells is bridged when it has some line pixels', () => {
+  // 3マス横並び: 左右は太い黒線、中央はごく細い黒線（1/8 列の半分）
+  const img = solid(24, 8, YELLOW);
+  drawRect(img, 0, 3, 8, 3, BLACK);
+  drawRect(img, 16, 3, 8, 3, BLACK);
+  drawRect(img, 8, 4, 8, 1, [60, 60, 60, 255]);
+  const bg = new Uint8Array(24 * 8);
+  const lines = lineMask(img, bg, undefined, 8);
+  const { cells, lineCells } = assignCells(img, 3, 1, 8, bg, lines, ALL32, 0.3);
+  expect(lineCells[0]).toBe(1);
+  expect(lineCells[2]).toBe(1);
+  expect(lineCells[1]).toBe(1);
+  expect(cells[1]).toBe(beadIdx('5018'));
+});
+
+test('thin line crossing a mostly-background cell still becomes a line cell', () => {
+  const img = solid(24, 24, [255, 255, 255, 255]);
+  drawRect(img, 0, 11, 24, 2, [40, 60, 160, 255]); // 2px の青い横線
+  const bg = new Uint8Array(24 * 24);
+  for (let i = 0; i < bg.length; i++) if (img.data[i * 4] === 255) bg[i] = 1; // 白は背景
+  const lines = lineMask(img, bg, undefined, 8);
+  const { cells, lineCells } = assignCells(img, 3, 3, 8, bg, lines, ALL32, 0.12);
+  expect([cells[3], cells[4], cells[5]]).toEqual([beadIdx('5008'), beadIdx('5008'), beadIdx('5008')]);
+  expect(lineCells[4]).toBe(1);
+  expect(cells[0]).toBe(0);
+});
