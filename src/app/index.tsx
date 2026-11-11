@@ -1,16 +1,20 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ProjectSummary } from '@/core/file/project';
+import { pickBeadsFile, readFileBytes } from '@/platform/incoming';
+import { projectRepo } from '@/platform/projectRepo';
 import { draftStore } from '@/state/draft';
+import { importBeads, importErrorMessage } from '@/state/importer';
+import { onIncoming, takeIncoming } from '@/state/incoming';
 import { editorStore } from '@/state/editor';
 import { flushAll } from '@/state/lifecycle';
 import { navStore } from '@/state/nav';
 import { projectsStore, useProjects } from '@/state/projects';
 import { Button } from '@/ui/Button';
-import { confirmDestructive, promptText, showMenu } from '@/ui/dialogs';
+import { confirmDestructive, notify, promptText, showMenu } from '@/ui/dialogs';
 import { ProjectCard } from '@/ui/ProjectCard';
 import { colors, fonts } from '@/ui/theme';
 
@@ -32,6 +36,33 @@ export default function Home() {
         .catch((e) => console.warn(e));
     }, []),
   );
+
+  const importFrom = useCallback(async (uri: string) => {
+    try {
+      const { id, stage } = await importBeads(projectRepo, await readFileBytes(uri), new Date());
+      await projectsStore().getState().refresh();
+      if (stage === 'setup') router.push({ pathname: '/new/convert', params: { id } });
+      else router.push({ pathname: '/project/[id]', params: { id } });
+    } catch (e) {
+      console.warn(e);
+      notify('読み込めませんでした', importErrorMessage(e));
+    }
+  }, []);
+
+  const pickAndImport = async () => {
+    const uri = await pickBeadsFile();
+    if (uri) await importFrom(uri);
+  };
+
+  // AirDrop・「このアプリで開く」で受け取ったファイル
+  useEffect(() => {
+    const check = () => {
+      const uri = takeIncoming();
+      if (uri) void importFrom(uri);
+    };
+    check();
+    return onIncoming(check);
+  }, [importFrom]);
 
   const columns = width >= 700 ? 4 : 2;
   const cardSize = width > 0 ? Math.floor((width - GAP * (columns - 1)) / columns) - 16 : 0;
@@ -58,7 +89,10 @@ export default function Home() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title}>作品</Text>
-        <Button title="設定" variant="plain" onPress={() => router.push('/settings')} testID="open-settings" />
+        <View style={styles.headerActions}>
+          <Button title="読み込み" variant="plain" onPress={() => void pickAndImport()} testID="import-file" />
+          <Button title="設定" variant="plain" onPress={() => router.push('/settings')} testID="open-settings" />
+        </View>
       </View>
       <View style={styles.list} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
         {items.length === 0 ? (
@@ -88,6 +122,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
+  headerActions: { flexDirection: 'row', gap: 4 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 12 },
   title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text },
   list: { flex: 1 },

@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { beadByIndex } from '@/core/palette/perler32';
+import { mirrorPlateIndex } from '@/core/sheet/plates';
 import { navStore, useNav } from '@/state/nav';
 import { Button } from '@/ui/Button';
 import { OpenError } from '@/ui/OpenError';
@@ -42,9 +43,12 @@ export default function Nav() {
   };
 
   const ready = project?.id === id;
+  // 反転中は見た目の位置で番号を数える（シート全体を反転）
+  const visualIndex = mirror ? mirrorPlateIndex(plates, plateIndex) : plateIndex;
+  const toData = (visual: number) => (mirror ? mirrorPlateIndex(plates, visual) : visual);
   const current = order[colorIndex];
   const plate = plates[plateIndex];
-  const last = plateIndex >= plates.length - 1;
+  const last = (mirror ? mirrorPlateIndex(plates, plateIndex) : plateIndex) >= plates.length - 1;
 
   const panel = ready && (
     <View style={[styles.panel, dev.isPad && dev.stage === 'side' && styles.sidePanel]}>
@@ -54,7 +58,7 @@ export default function Nav() {
         </Pressable>
         <Text style={styles.title} numberOfLines={1} testID="nav-title">
           {project.name}
-          {plates.length > 1 ? ` ・ プレート ${plateIndex + 1}/${plates.length}` : ''}
+          {plates.length > 1 ? ` ・ プレート ${visualIndex + 1}/${plates.length}` : ''}
         </Text>
         <Pressable accessibilityRole="button" testID="nav-mirror" onPress={() => st().toggleMirror()} hitSlop={8} style={styles.hit}>
           <Text style={styles.link}>{mirror ? '⇋ 反転中' : '⇋ 反転'}</Text>
@@ -70,7 +74,7 @@ export default function Nav() {
           <Text style={styles.big} testID="nav-current">
             このプレートにはビーズがありません
           </Text>
-          {!last && <Button title="次のプレートへ" onPress={() => st().setPlate(plateIndex + 1)} />}
+          {!last && <Button title="次のプレートへ" onPress={() => st().setPlate(toData(visualIndex + 1))} />}
         </View>
       ) : done ? (
         <View style={styles.center}>
@@ -79,7 +83,7 @@ export default function Nav() {
           </Text>
           <View style={styles.row}>
             <Button title="◀ 前へ" variant="secondary" onPress={() => st().prev()} testID="nav-prev" style={{ flex: 1 }} />
-            {!last && <Button title="次のプレートへ" onPress={() => st().setPlate(plateIndex + 1)} testID="nav-next-plate" style={{ flex: 1 }} />}
+            {!last && <Button title="次のプレートへ" onPress={() => st().setPlate(toData(visualIndex + 1))} testID="nav-next-plate" style={{ flex: 1 }} />}
           </View>
         </View>
       ) : (
@@ -121,7 +125,7 @@ export default function Nav() {
         </>
       )}
       <View style={styles.row}>
-        {plates.length > 1 && <PlateMiniMap sheet={project.sheet} plates={plates} current={plateIndex} size={dev.isPad ? 160 : 96} onSelect={(i) => st().setPlate(i)} />}
+        {plates.length > 1 && <PlateMiniMap sheet={project.sheet} plates={plates} current={plateIndex} size={dev.isPad ? 160 : 96} mirror={mirror} onSelect={(i) => st().setPlate(i)} />}
         {fit?.fits === 'half' && (
           <Segmented<0 | 1>
             testID="nav-half"
@@ -166,7 +170,7 @@ export default function Nav() {
         />
       )}
       {plates.length > 1 && (
-        <Button title={`プレート ${plateIndex + 1}/${plates.length} ▸`} variant="plain" onPress={() => st().setPlate((plateIndex + 1) % plates.length)} testID="nav-title" />
+        <Button title={`プレート ${visualIndex + 1}/${plates.length} ▸`} variant="plain" onPress={() => st().setPlate(toData((visualIndex + 1) % plates.length))} testID="nav-title" />
       )}
       <Pressable accessibilityRole="button" testID="nav-mirror" onPress={() => st().toggleMirror()} hitSlop={8} style={styles.hit}>
         <Text style={styles.link}>{mirror ? '⇋反転中' : '⇋'}</Text>

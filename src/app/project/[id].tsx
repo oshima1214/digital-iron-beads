@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { countBeads } from '@/core/sheet/counts';
-import { platesOf } from '@/core/sheet/plates';
+import { mirrorPlateIndex, platesOf } from '@/core/sheet/plates';
 import { editorStore, useEditor } from '@/state/editor';
 import { showMenu } from '@/ui/dialogs';
 import { CountsSheet } from '@/ui/editor/CountsSheet';
@@ -54,10 +54,14 @@ export default function Editor() {
   const st = () => editorStore().getState();
 
   const viewMenu = async () => {
-    const i = await showMenu('表示', [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ']);
+    const i = await showMenu('表示', [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ', '書き出し・共有']);
     if (i === 0) st().toggleMirror();
     else if (i === 1) st().toggleMelted();
     else if (i === 2) setShowCounts(true);
+    else if (i === 3) {
+      await st().flush(); // 最新の編集を保存してから書き出す
+      router.push({ pathname: '/export/[id]', params: { id } });
+    }
   };
 
   const ready = project?.id === id;
@@ -99,7 +103,7 @@ export default function Editor() {
   );
   const stats = (
     <Text style={styles.stats} testID="editor-stats">
-      {ready ? `${counts.length}色 ・ ${total}粒${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${plate.index + 1}/${plates.length}` : ''}` : ' '}
+      {ready ? `${counts.length}色 ・ ${total}粒${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${(mirror ? mirrorPlateIndex(plates, plate.index) : plate.index) + 1}/${plates.length}` : ''}` : ' '}
     </Text>
   );
   const tools = (
@@ -112,7 +116,7 @@ export default function Editor() {
       <Toolbar disabled={melted || !ready} />
       {plate && plates.length > 1 && ready && (
         <View style={styles.plateRow}>
-          <PlateMiniMap sheet={project.sheet} plates={plates} current={plate.index} size={side ? 160 : 112} onSelect={setPlateIndex} />
+          <PlateMiniMap sheet={project.sheet} plates={plates} current={plate.index} size={side ? 160 : 112} mirror={mirror} onSelect={setPlateIndex} />
         </View>
       )}
     </View>
