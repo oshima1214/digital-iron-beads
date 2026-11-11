@@ -5,7 +5,13 @@ module.exports = {
       displayName: 'core',
       preset: 'jest-expo',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/src/core/**/*.test.ts', '<rootDir>/tools/**/*.test.ts'],
+      testMatch: [
+        '<rootDir>/src/core/**/*.test.ts',
+        '<rootDir>/src/platform/**/*.test.ts',
+        '<rootDir>/src/state/**/*.test.ts',
+        '<rootDir>/src/ui/**/*.test.ts',
+        '<rootDir>/tools/**/*.test.ts',
+      ],
     },
     {
       displayName: 'app',
