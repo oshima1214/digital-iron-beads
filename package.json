@@ -21,6 +21,7 @@
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
     "expo-system-ui": "~58.0.7",
+    "expo-updates": "~58.0.21",
     "fflate": "^0.8.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -57,7 +58,8 @@
     "compare": "tsx tools/compare/run.ts",
     "fixtures": "tsx tools/compare/fixtures/make-fixtures.ts",
     "e2e:web": "npm run web:export && NODE_PATH=$(npm root -g) node e2e/m2-flow.cjs && NODE_PATH=$(npm root -g) node e2e/m3-editor.cjs && NODE_PATH=$(npm root -g) node e2e/m4-nav.cjs && NODE_PATH=$(npm root -g) node e2e/m5-text-export.cjs",
-    "ios:export": "expo export -p ios --output-dir dist-ios"
+    "ios:export": "expo export -p ios --output-dir dist-ios",
+    "update:preview": "eas update --branch preview --platform ios"
   },
   "private": true
 }
