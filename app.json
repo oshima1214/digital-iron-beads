@@ -74,6 +74,18 @@
     "platforms": [
       "ios",
       "web"
-    ]
+    ],
+    "owner": "oshima1214",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ffa65bae-753d-4969-8e78-92c83c98820f"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ffa65bae-753d-4969-8e78-92c83c98820f"
+      }
+    }
   }
 }

@@ -22,6 +22,18 @@ npm start           # 開発サーバ
 
 ## 実機での確認
 
+### Expo Go + EAS Update（PC やサーバーを動かさずに、どこからでも開く）
+
+1. iPhone の Expo Go に、プロジェクトの持ち主の Expo アカウント（oshima1214）でログインしておく
+2. PC で配信する（`runtimeVersion` は Expo Go で動くよう `sdkVersion` にしてある）
+
+```bash
+npx eas-cli@latest update --branch preview --platform ios --message "説明"
+```
+
+3. 表示された URL（expo.dev の更新ページ）を開き、「Preview」の QR コードを iPhone で読む
+
+
 Skia などのネイティブモジュールを使うため、Expo Go ではなく開発用ビルドで動かします。マイルストーンごとの確認項目は `docs/checklists/` にあります。
 
 ## ビルド・提出（EAS）
