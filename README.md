@@ -28,10 +28,12 @@ npm start           # 開発サーバ
 2. PC で配信する（`runtimeVersion` は Expo Go で動くよう `sdkVersion` にしてある）
 
 ```bash
-npx eas-cli@latest update --branch preview --platform ios --message "説明"
+npx eas-cli@latest update --branch preview --environment preview --platform ios --message "説明"
 ```
 
 3. 表示された URL（expo.dev の更新ページ）を開き、「Preview」の QR コードを iPhone で読む
+
+開けるのは、プロジェクトの持ち主のアカウントか、持ち主の組織のメンバーとして Expo Go にログインしている人だけです（2026年5月からの Expo Go の制限）。ほかの人に試してもらうには、Expo の組織に招待するか、TestFlight などで配る必要があります。
 
 
 Skia などのネイティブモジュールを使うため、Expo Go ではなく開発用ビルドで動かします。マイルストーンごとの確認項目は `docs/checklists/` にあります。
