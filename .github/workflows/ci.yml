@@ -19,3 +19,5 @@ jobs:
       - run: npm run lint
       - run: npm test -- --ci
       - run: npm run web:export
+      # iOS 用の JS バンドルが作れることを確認する（Web 専用のコードが混ざると失敗する）
+      - run: npx expo export -p ios --output-dir dist-ios
