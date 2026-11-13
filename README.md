@@ -24,7 +24,7 @@ npm start           # 開発サーバ
 
 ### Expo Go + EAS Update（PC やサーバーを動かさずに、どこからでも開く）
 
-1. iPhone の Expo Go に、プロジェクトの持ち主の Expo アカウント（oshima1214）でログインしておく
+1. iPhone の Expo Go に、Expo の組織 `digital-iron-beads-team` のメンバーのアカウントでログインしておく（メンバーでないと開けない）
 2. PC で配信する（`runtimeVersion` は Expo Go で動くよう `sdkVersion` にしてある）
 
 ```bash
@@ -33,7 +33,7 @@ npx eas-cli@latest update --branch preview --environment preview --platform ios 
 
 3. 表示された URL（expo.dev の更新ページ）を開き、「Preview」の QR コードを iPhone で読む
 
-開けるのは、プロジェクトの持ち主のアカウントか、持ち主の組織のメンバーとして Expo Go にログインしている人だけです（2026年5月からの Expo Go の制限）。ほかの人に試してもらうには、Expo の組織に招待するか、TestFlight などで配る必要があります。
+開けるのは、組織 `digital-iron-beads-team` のメンバーとして Expo Go にログインしている人だけです（Expo Go の制限。Expo CLI 側もログインが必要）。ほかの人に試してもらうには、expo.dev の組織のページ → Members → Invite で招待するか、TestFlight などで配ります。
 
 
 Skia などのネイティブモジュールを使うため、Expo Go ではなく開発用ビルドで動かします。マイルストーンごとの確認項目は `docs/checklists/` にあります。
