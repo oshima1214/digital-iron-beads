@@ -31,6 +31,8 @@ Expo Go（App Store の無料アプリ）の中で、iPhone・iPad のネイテ�
 
 ### 他の人に試してもらう（EAS Update）
 
+試す人向けの手順と注意事項は `docs/testing/device-testing.md` にまとめてある。
+
 1. 組織に招待する：expo.dev → 組織 `digital-iron-beads-team` → Members → Invite。**ユーザー名で招待**すると確実。役割は Developer（Viewer で開けるかは未確認）
 2. 招待された人は、**シークレットウインドウで自分のアカウントにログインしてから**招待を承認する（持ち主がログイン中のブラウザで開くと、持ち主として処理されてメンバーにならない）
 3. PC で配信する

@@ -1,10 +1,6 @@
 # M2 実機確認リスト（iPhone / iPad）
 
-開発用ビルドで確認する（Expo Go には Skia などのネイティブモジュールが入っていないため使えない）。
-
-```bash
-npx eas-cli@latest build --profile development --platform ios
-```
+Expo Go で確認する。手順は `docs/testing/device-testing.md` を参照。
 
 | # | 確認すること | 期待する結果 | 結果 |
 |---|---|---|---|
