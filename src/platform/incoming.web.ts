@@ -9,3 +9,8 @@ export async function pickBeadsFile(): Promise<string | null> {
   const r = await DocumentPicker.getDocumentAsync({ type: '*/*' });
   return r.canceled || !r.assets?.[0] ? null : r.assets[0].uri;
 }
+
+export async function pickImageFile(): Promise<string | null> {
+  const r = await DocumentPicker.getDocumentAsync({ type: 'image/*' });
+  return r.canceled || !r.assets?.[0] ? null : r.assets[0].uri;
+}

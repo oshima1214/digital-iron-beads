@@ -11,3 +11,9 @@ export async function pickBeadsFile(): Promise<string | null> {
   const r = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
   return r.canceled || !r.assets?.[0] ? null : r.assets[0].uri;
 }
+
+/** 「ファイル」アプリから画像を選ぶ。キャンセルなら null。 */
+export async function pickImageFile(): Promise<string | null> {
+  const r = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
+  return r.canceled || !r.assets?.[0] ? null : r.assets[0].uri;
+}

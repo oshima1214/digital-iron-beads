@@ -4,6 +4,7 @@
  */
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 const { chromium } = require('playwright');
 
 const PORT = 8099;
@@ -28,11 +29,15 @@ async function noScroll(page, label) {
   await page.setViewportSize(PHONE);
 }
 
-async function createFromPhoto(page) {
+// 「写真から作る」のメニュー（Web では prompt）で選ぶ番号。'1' = 写真ライブラリ、'2' = ファイル
+let menuAnswer = '1';
+const alerts = [];
+
+async function createFromPhoto(page, file = FACE) {
   await page.getByTestId('new-project').click();
   const chooser = page.waitForEvent('filechooser');
   await page.getByTestId('source-photo').click();
-  await (await chooser).setFiles(FACE);
+  await (await chooser).setFiles(file);
   await page.getByText('下ごしらえ').waitFor({ timeout: 20000 });
 }
 
@@ -43,6 +48,11 @@ async function createFromPhoto(page) {
   const page = await browser.newPage({ viewport: PHONE });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('dialog', (d) => {
+    if (d.type() === 'prompt') return d.accept(menuAnswer);
+    alerts.push(d.message());
+    return d.accept();
+  });
   try {
     await page.goto(BASE);
     await page.getByText('まだ作品がありません').waitFor({ timeout: 30000 });
@@ -85,6 +95,27 @@ async function createFromPhoto(page) {
     await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
     const selected = await page.getByTestId('size-21').getAttribute('aria-selected');
     check('resume returns to convert screen with saved size', selected === 'true', `aria-selected=${selected}`);
+
+    // ファイルから選ぶ：画像でないファイルは案内を出して何も作らない
+    menuAnswer = '2';
+    const notImage = path.join(__dirname, 'not-image.txt');
+    fs.writeFileSync(notImage, 'hello');
+    await page.goto(BASE);
+    await page.getByTestId('new-project').click();
+    let chooser = page.waitForEvent('filechooser');
+    await page.getByTestId('source-photo').click();
+    await (await chooser).setFiles(notImage);
+    await page.waitForTimeout(1500);
+    fs.unlinkSync(notImage);
+    check('file: non-image shows message', alerts.some((m) => m.includes('画像を読み込めませんでした')), alerts.join(' | '));
+    check('file: non-image stays on source screen', await page.getByTestId('source-photo').isVisible());
+
+    // ファイルから選ぶ：画像なら下ごしらえへ
+    chooser = page.waitForEvent('filechooser');
+    await page.getByTestId('source-photo').click();
+    await (await chooser).setFiles(FACE);
+    await page.getByText('下ごしらえ').waitFor({ timeout: 20000 });
+    check('file: image → prepare', true);
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: path.join(__dirname, 'failure.png') });
