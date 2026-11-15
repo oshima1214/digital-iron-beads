@@ -29,6 +29,7 @@ async function noScroll(page, label) {
   const page = await browser.newPage({ viewport: PHONE });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('dialog', (d) => (d.type() === 'prompt' ? d.accept('1') : d.dismiss())); // 「写真から作る」→ 写真ライブラリ
   const current = () => page.getByTestId('nav-current').textContent();
   const title = () => page.getByTestId('nav-title').textContent();
   try {

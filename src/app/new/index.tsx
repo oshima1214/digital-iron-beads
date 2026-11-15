@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createProject } from '@/core/file/project';
 import { createSheet, type SheetSize } from '@/core/sheet/sheet';
+import { pickImageFile } from '@/platform/incoming';
 import { loadRgba } from '@/platform/pixels';
 import { projectRepo } from '@/platform/projectRepo';
 import { draftStore } from '@/state/draft';
@@ -16,6 +17,12 @@ import { NavBar } from '@/ui/NavBar';
 import { colors, fonts } from '@/ui/theme';
 
 const SIZES: SheetSize[] = [13, 21, 29, 58, 116];
+const PHOTO_SOURCES = ['写真ライブラリから選ぶ', 'ファイルから選ぶ'];
+
+async function pickLibraryPhoto(): Promise<string | null> {
+  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 1 });
+  return res.canceled || !res.assets?.[0] ? null : res.assets[0].uri;
+}
 
 function defaultName(): string {
   return `作品 ${projectsStore().getState().items.length + 1}`;
@@ -25,16 +32,20 @@ export default function NewSource() {
   const [busy, setBusy] = useState(false);
 
   const fromPhoto = async () => {
+    const from = await showMenu('写真から作る', PHOTO_SOURCES);
+    if (from === null) return;
+    const fromFiles = from === 1;
     setBusy(true);
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 1 });
-      if (res.canceled || !res.assets?.[0]) return;
-      const img = await loadRgba(res.assets[0].uri);
+      const uri = fromFiles ? await pickImageFile() : await pickLibraryPhoto();
+      if (!uri) return;
+      const img = await loadRgba(uri);
       const id = await draftStore().getState().startFromImage(img, defaultName());
       router.replace({ pathname: '/new/prepare', params: { id } });
     } catch (e) {
       console.warn(e);
-      notify('写真を読み込めませんでした', '設定アプリで写真へのアクセスを許可してください。');
+      if (fromFiles) notify('画像を読み込めませんでした', '写真（JPEG・PNG・HEIC など）のファイルを選んでください。');
+      else notify('写真を読み込めませんでした', '設定アプリで写真へのアクセスを許可してください。');
     } finally {
       setBusy(false);
     }
