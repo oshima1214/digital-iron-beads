@@ -44,7 +44,7 @@ export default function NewSource() {
       router.replace({ pathname: '/new/prepare', params: { id } });
     } catch (e) {
       console.warn(e);
-      if (fromFiles) notify('画像を読み込めませんでした', '写真（JPEG・PNG・HEIC など）のファイルを選んでください。');
+      if (fromFiles) notify('画像を読み込めませんでした', '写真（JPEG・PNG・HEIC など）か PDF のファイルを選んでください。PDF は1ページ目を使います。');
       else notify('写真を読み込めませんでした', '設定アプリで写真へのアクセスを許可してください。');
     } finally {
       setBusy(false);
