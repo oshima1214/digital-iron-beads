@@ -116,6 +116,18 @@ async function createFromPhoto(page, file = FACE) {
     await (await chooser).setFiles(FACE);
     await page.getByText('下ごしらえ').waitFor({ timeout: 20000 });
     check('file: image → prepare', true);
+
+    // 下ごしらえで作品名を変える
+    const nameInput = page.getByTestId('prepare-name');
+    const before = await nameInput.inputValue();
+    await nameInput.fill('');
+    await page.getByText('下ごしらえ').click(); // 入力欄の外をタップ
+    check('name: blank restores previous name', (await nameInput.inputValue()) === before, await nameInput.inputValue());
+    await nameInput.fill('ねこの顔');
+    await page.waitForTimeout(1200); // 自動保存（500ms）を待つ
+    await page.goto(BASE);
+    await page.getByText('ねこの顔').first().waitFor({ timeout: 20000 });
+    check('name: renamed in prepare shows on home', true);
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: path.join(__dirname, 'failure.png') });

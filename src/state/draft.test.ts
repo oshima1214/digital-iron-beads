@@ -134,3 +134,14 @@ test('finish() rejects when the save fails', async () => {
   repo.failSaves(true);
   await expect(store.getState().finish()).rejects.toThrow();
 });
+
+test('setName trims, autosaves, and ignores blank names', async () => {
+  const { repo, store, img } = setup();
+  const id = await store.getState().startFromImage(img, '作品 1');
+  store.getState().setName('  ねこ  ');
+  expect(store.getState().project?.name).toBe('ねこ');
+  store.getState().setName('   ');
+  expect(store.getState().project?.name).toBe('ねこ');
+  await jest.advanceTimersByTimeAsync(600);
+  expect((await repo.load(id)).name).toBe('ねこ');
+});
