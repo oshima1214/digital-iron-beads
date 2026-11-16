@@ -222,3 +222,28 @@ test('editor saves never overwrite nav progress written by the nav screen', asyn
   expect(saved.nav).toEqual({ plateIndex: 0, colorIndex: 3 });
   expect(saved.sheet.cells[idx(saved.sheet, 1, 1)]).toBe(RED);
 });
+
+test('pen and eraser use their own brush size', async () => {
+  const sizes = { pen: 3, eraser: 1 };
+  const repo = createMemoryRepo();
+  const p = createProject('作品', createSheet(13, 13), new Date('2026-11-10T00:00:00Z'));
+  await repo.save(p);
+  const store = createEditorStore(repo, () => new Date('2026-11-11T00:00:00Z'), 500, (t) => sizes[t]);
+  await store.getState().open(p.id);
+  const st = store.getState();
+  st.setColor(RED);
+  st.strokeBegin([5, 5]);
+  st.strokeMove([7, 5]);
+  st.strokeEnd();
+  // 3×3 のペンで (5,5)→(7,5)：x 4..8, y 4..6 の 15 マス
+  expect(cellsOf(store).cells.filter((v) => v === RED)).toHaveLength(15);
+  st.setTool('eraser');
+  st.strokeBegin([6, 5]);
+  st.strokeEnd();
+  expect(at(store, 6, 5)).toBe(0);
+  expect(at(store, 5, 5)).toBe(RED);
+  store.getState().undo();
+  expect(at(store, 6, 5)).toBe(RED);
+  store.getState().undo();
+  expect(cellsOf(store).cells.filter((v) => v === RED)).toHaveLength(0);
+});

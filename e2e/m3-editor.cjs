@@ -112,6 +112,43 @@ function check(name, ok, detail = '') {
     expected[12] = RED;
     const diff = cells.map((v, i) => (v === expected[i] ? null : `${i}:${v}≠${expected[i]}`)).filter(Boolean);
     check('saved cells match after reload', diff.length === 0, diff.slice(0, 5).join(' '));
+
+    // ペン・消しゴムの太さ（スライダー 1〜7）
+    const setBrush = async (n) => {
+      const box = await page.getByTestId('brush-size').boundingBox();
+      await page.mouse.click(box.x + 2 + ((box.width - 4) * (n - 1)) / 6, box.y + box.height / 2);
+      await page.waitForTimeout(200);
+    };
+    const brushValue = () => page.getByTestId('brush-size-value').textContent();
+    await page.goto(BASE);
+    await page.getByTestId('new-project').click();
+    answer = '1'; // 13 × 13
+    await page.getByTestId('source-blank').click();
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(500);
+    check('brush: pen starts at 1', (await brushValue()) === '1マス', await brushValue());
+    await setBrush(3);
+    check('brush: slider sets pen to 3', (await brushValue()) === '3マス', await brushValue());
+    await page.getByTestId('color-5005').click();
+    await tap(6, 6);
+    check('brush: 3 paints 3×3', /1色 ・ 9粒/.test(await stats()), await stats());
+    await tap(0, 0);
+    check('brush: clipped at the corner (+4)', /1色 ・ 13粒/.test(await stats()), await stats());
+    await page.getByTestId('undo').click();
+    check('brush: one undo per tap', /1色 ・ 9粒/.test(await stats()), await stats());
+    await page.getByTestId('tool-eraser').click();
+    check('brush: eraser keeps its own size', (await brushValue()) === '1マス', await brushValue());
+    await tap(6, 6);
+    check('brush: eraser 1 removes one bead', /1色 ・ 8粒/.test(await stats()), await stats());
+    await setBrush(7);
+    await tap(6, 6);
+    check('brush: eraser 7 clears the rest', /0色 ・ 0粒/.test(await stats()), await stats());
+    await noScroll('editor with brush slider');
+    await page.waitForTimeout(800);
+    await page.reload();
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(500);
+    check('brush: pen size remembered after reload', (await brushValue()) === '3マス', await brushValue());
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: `${__dirname}/failure-m3.png` });

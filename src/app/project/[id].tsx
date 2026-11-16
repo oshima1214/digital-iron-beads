@@ -9,6 +9,7 @@ import { editorStore, useEditor } from '@/state/editor';
 import { showMenu } from '@/ui/dialogs';
 import { CountsSheet } from '@/ui/editor/CountsSheet';
 import { EditorCanvas } from '@/ui/editor/EditorCanvas';
+import { BrushBar } from '@/ui/editor/BrushBar';
 import { PaletteBar } from '@/ui/editor/PaletteBar';
 import { SELECTION_BAR_HEIGHT, SelectionBar } from '@/ui/editor/SelectionBar';
 import { Toolbar } from '@/ui/editor/Toolbar';
@@ -110,7 +111,15 @@ export default function Editor() {
     <View style={[styles.panel, side && styles.sidePanel]}>
       {/* 選択バーの場所は常に確保する（ツールを切り替えてもシートが動かないように） */}
       <View style={{ height: SELECTION_BAR_HEIGHT, justifyContent: 'center' }}>
-        {tool === 'select' && !melted ? <SelectionBar /> : <Text style={styles.hint}>{melted ? '完成イメージを表示中（見るだけ）' : HINTS[tool]}</Text>}
+        {melted ? (
+          <Text style={styles.hint}>完成イメージを表示中（見るだけ）</Text>
+        ) : tool === 'select' ? (
+          <SelectionBar />
+        ) : tool === 'pen' || tool === 'eraser' ? (
+          <BrushBar tool={tool} />
+        ) : (
+          <Text style={styles.hint}>{HINTS[tool]}</Text>
+        )}
       </View>
       <PaletteBar />
       <Toolbar disabled={melted || !ready} />

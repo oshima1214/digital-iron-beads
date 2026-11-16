@@ -7,9 +7,18 @@ export interface AppSettings {
   calibrated: boolean;
   /** iPad 横向きのパネルの位置 */
   panelSide: 'left' | 'right';
+  /** ペンの太さ（マス）1..7 */
+  penSize: number;
+  /** 消しゴムの太さ（マス）1..7 */
+  eraserSize: number;
 }
 
-export const DEFAULT_SETTINGS: AppSettings = { calibration: 1, calibrated: false, panelSide: 'right' };
+export const BRUSH_MIN = 1;
+export const BRUSH_MAX = 7;
+export type BrushTool = 'pen' | 'eraser';
+const clampBrush = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(BRUSH_MAX, Math.max(BRUSH_MIN, Math.round(v))) : 1);
+
+export const DEFAULT_SETTINGS: AppSettings = { calibration: 1, calibrated: false, panelSide: 'right', penSize: 1, eraserSize: 1 };
 export const CALIBRATION_MIN = 0.9;
 export const CALIBRATION_MAX = 1.1;
 
@@ -30,6 +39,8 @@ export function parseSettings(json: string): AppSettings {
       calibration: typeof o.calibration === 'number' && Number.isFinite(o.calibration) ? clampCal(o.calibration) : 1,
       calibrated: o.calibrated === true,
       panelSide: o.panelSide ?? 'right',
+      penSize: clampBrush(o.penSize),
+      eraserSize: clampBrush(o.eraserSize),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -42,6 +53,7 @@ export interface SettingsState {
   load(): Promise<void>;
   setCalibration(v: number): Promise<void>;
   setPanelSide(side: AppSettings['panelSide']): Promise<void>;
+  setBrushSize(tool: BrushTool, size: number): Promise<void>;
   reset(): Promise<void>;
 }
 
@@ -69,6 +81,7 @@ export function createSettingsStore(repo: SettingsRepo) {
       },
       setCalibration: (v) => save({ ...get().settings, calibration: clampCal(v), calibrated: true }),
       setPanelSide: (side) => save({ ...get().settings, panelSide: side }),
+      setBrushSize: (tool, size) => save({ ...get().settings, [tool === 'pen' ? 'penSize' : 'eraserSize']: clampBrush(size) }),
       reset: () => save({ ...DEFAULT_SETTINGS }),
     };
   });
