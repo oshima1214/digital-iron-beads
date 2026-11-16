@@ -2,6 +2,7 @@ import { createStore, useStore } from 'zustand';
 
 import type { Project } from '@/core/file/project';
 import { History } from '@/core/history/history';
+import { RANGE_IDLE, type RangeEvent, rangeOf, type RangeState, rangeStep } from '@/core/machines/rangeSelect';
 import { PERLER32 } from '@/core/palette/perler32';
 import { countBeads } from '@/core/sheet/counts';
 import { applyChanges, brushCells, type Cell, type CellChange, floodFill, lineCells, outline, paintCells, rectCells } from '@/core/sheet/ops';
@@ -23,7 +24,10 @@ export interface EditorState {
   color: number;
   selection: ReadonlySet<number>;
   rangeMode: boolean;
+  /** 範囲選択で画面に描く矩形（rangePhase から決まる） */
   range: [Cell, Cell] | null;
+  /** 範囲選択の状態（core/machines/rangeSelect）。anchored = 1点目を置いて2点目を待っている */
+  rangePhase: RangeState['phase'];
   mirror: boolean;
   melted: boolean;
   canUndo: boolean;
@@ -73,9 +77,8 @@ export function createEditorStore(
   }, autosaveMs);
   let history = new History();
   let stroke: { changes: Map<number, CellChange>; last: Cell | null } | null = null;
-  // 範囲モードの「2点を指定」：1点目をタップしたら anchor、2点目のタップ後の rangeEnd で矩形を確定する
-  let anchor = false;
-  let pendingSecond = false;
+  // 範囲選択の状態機械（ドラッグ／2点タップ）。画面には range と rangePhase として見せる
+  let rangeState: RangeState = RANGE_IDLE;
 
   return createStore<EditorState>()((set, get) => {
     /** 差分をすでに適用したあとに呼ぶ：版を進め、自動保存を予約する。 */
@@ -93,6 +96,15 @@ export function createEditorStore(
       applyChanges(p.sheet, changes, 'forward');
       history.push(changes);
       touched();
+    };
+    /** 範囲選択の状態機械を1歩進める。確定した矩形があれば返す。 */
+    const stepRange = (event: RangeEvent): [Cell, Cell] | undefined => {
+      const { state, commit } = rangeStep(rangeState, event);
+      if (state !== rangeState) {
+        rangeState = state;
+        set({ range: rangeOf(state), rangePhase: state.phase });
+      }
+      return commit;
     };
     const paintValue = () => (get().tool === 'eraser' ? 0 : get().color);
     const strokeTo = (c: Cell) => {
@@ -119,6 +131,7 @@ export function createEditorStore(
       selection: new Set(),
       rangeMode: false,
       range: null,
+      rangePhase: 'idle',
       mirror: false,
       melted: false,
       canUndo: false,
@@ -128,6 +141,7 @@ export function createEditorStore(
         await saver.flush();
         history = new History();
         stroke = null;
+        stepRange({ type: 'cancel' });
         try {
           const p = await repo.load(id);
           const top = countBeads(p.sheet)[0];
@@ -140,6 +154,7 @@ export function createEditorStore(
             color: top ? top.index : BLACK,
             selection: new Set(),
             range: null,
+            rangePhase: 'idle',
             rangeMode: false,
             melted: false,
             canUndo: false,
@@ -152,7 +167,8 @@ export function createEditorStore(
       },
 
       setTool(t) {
-        set({ tool: t, range: null, ...(t === 'select' ? {} : { selection: new Set<number>() }) });
+        stepRange({ type: 'cancel' });
+        set({ tool: t, ...(t === 'select' ? {} : { selection: new Set<number>() }) });
       },
       setColor(i) {
         set({ color: i });
@@ -187,15 +203,7 @@ export function createEditorStore(
         const p = get().project;
         if (!p || !c) return;
         if (get().rangeMode) {
-          const r = get().range;
-          if (r && anchor) {
-            // 2点目のタップ：1点目との矩形を選ぶ
-            set({ range: [r[0], c] });
-            anchor = false;
-            pendingSecond = true;
-            return;
-          }
-          set({ range: [c, c] });
+          stepRange({ type: 'press', cell: c });
           return;
         }
         const i = idx(p.sheet, c[0], c[1]);
@@ -205,25 +213,16 @@ export function createEditorStore(
         set({ selection: next });
       },
       rangeMove(c) {
-        const r = get().range;
-        if (!r || !c) return;
-        set({ range: [r[0], c] });
+        stepRange({ type: 'move', cell: c });
       },
       rangeEnd() {
         const p = get().project;
-        const r = get().range;
-        if (!p || !r) return;
-        const same = r[0][0] === r[1][0] && r[0][1] === r[1][1];
-        if (same && !pendingSecond) {
-          // ドラッグせずに離した：1点目として残し、2点目のタップを待つ
-          anchor = true;
-          return;
-        }
-        pendingSecond = false;
-        anchor = false;
+        if (!p) return;
+        const rect = stepRange({ type: 'release' });
+        if (!rect) return;
         const next = new Set(get().selection);
-        for (const [x, y] of rectCells(r[0], r[1])) next.add(idx(p.sheet, x, y));
-        set({ selection: next, range: null });
+        for (const [x, y] of rectCells(rect[0], rect[1])) next.add(idx(p.sheet, x, y));
+        set({ selection: next });
       },
       recolorSelection() {
         const p = get().project;
@@ -238,9 +237,8 @@ export function createEditorStore(
         set({ selection: new Set() });
       },
       clearSelection() {
-        anchor = false;
-        pendingSecond = false;
-        set({ selection: new Set(), range: null });
+        stepRange({ type: 'cancel' });
+        set({ selection: new Set() });
       },
 
       applyOutline(thickness) {
@@ -267,9 +265,8 @@ export function createEditorStore(
         set({ melted: !get().melted });
       },
       setRangeMode(on) {
-        anchor = false;
-        pendingSecond = false;
-        set({ rangeMode: on, range: null });
+        stepRange({ type: 'cancel' });
+        set({ rangeMode: on });
       },
 
       flush: () => saver.flush(),
@@ -277,7 +274,8 @@ export function createEditorStore(
         if (stroke) get().strokeEnd();
         await saver.flush();
         history = new History();
-        set({ project: null, error: null, selection: new Set(), range: null, canUndo: false, canRedo: false });
+        stepRange({ type: 'cancel' });
+        set({ project: null, error: null, selection: new Set(), canUndo: false, canRedo: false });
       },
     };
   });

@@ -9,6 +9,8 @@ import { editorStore, useEditor } from '@/state/editor';
 import { showMenu } from '@/ui/dialogs';
 import { CountsSheet } from '@/ui/editor/CountsSheet';
 import { EditorCanvas } from '@/ui/editor/EditorCanvas';
+import { loadStatus } from '@/core/machines/loadStatus';
+import { editorMode } from '@/core/machines/phases';
 import { BrushBar } from '@/ui/editor/BrushBar';
 import { PaletteBar } from '@/ui/editor/PaletteBar';
 import { SELECTION_BAR_HEIGHT, SelectionBar } from '@/ui/editor/SelectionBar';
@@ -34,6 +36,7 @@ export default function Editor() {
   const tool = useEditor((s) => s.tool);
   const mirror = useEditor((s) => s.mirror);
   const melted = useEditor((s) => s.melted);
+  const rangePhase = useEditor((s) => s.rangePhase);
   const canUndo = useEditor((s) => s.canUndo);
   const canRedo = useEditor((s) => s.canRedo);
   const [showCounts, setShowCounts] = useState(false);
@@ -65,7 +68,9 @@ export default function Editor() {
     }
   };
 
+  const status = loadStatus({ wanted: id, loaded: project?.id, error: !!error });
   const ready = project?.id === id;
+  const mode = editorMode(tool, melted);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const plates = useMemo(() => (ready ? platesOf(project.sheet) : []), [ready, project?.id, project?.sheet.width]);
   const plate = dev.isPad && plates.length > 0 ? plates[Math.min(plateIndex, plates.length - 1)] : null;
@@ -103,26 +108,26 @@ export default function Editor() {
     </View>
   );
   const stats = (
-    <Text style={styles.stats} testID="editor-stats">
-      {ready ? `${counts.length}色 ・ ${total}粒${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${(mirror ? mirrorPlateIndex(plates, plate.index) : plate.index) + 1}/${plates.length}` : ''}` : ' '}
+    <Text style={styles.stats} testID="editor-stats" numberOfLines={1}>
+      {ready ? `${counts.length}色 ・ ${total}粒${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${mode === 'select' && rangePhase === 'anchored' ? ' ・ 範囲：もう一方の角をタップ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${(mirror ? mirrorPlateIndex(plates, plate.index) : plate.index) + 1}/${plates.length}` : ''}` : ' '}
     </Text>
   );
   const tools = (
     <View style={[styles.panel, side && styles.sidePanel]}>
       {/* 選択バーの場所は常に確保する（ツールを切り替えてもシートが動かないように） */}
       <View style={{ height: SELECTION_BAR_HEIGHT, justifyContent: 'center' }}>
-        {melted ? (
+        {mode === 'viewing' ? (
           <Text style={styles.hint}>完成イメージを表示中（見るだけ）</Text>
-        ) : tool === 'select' ? (
+        ) : mode === 'select' ? (
           <SelectionBar />
-        ) : tool === 'pen' || tool === 'eraser' ? (
-          <BrushBar tool={tool} />
+        ) : mode === 'brush' ? (
+          <BrushBar tool={tool === 'eraser' ? 'eraser' : 'pen'} />
         ) : (
           <Text style={styles.hint}>{HINTS[tool]}</Text>
         )}
       </View>
       <PaletteBar />
-      <Toolbar disabled={melted || !ready} />
+      <Toolbar disabled={mode === 'viewing' || !ready} />
       {plate && plates.length > 1 && ready && (
         <View style={styles.plateRow}>
           <PlateMiniMap sheet={project.sheet} plates={plates} current={plate.index} size={side ? 160 : 112} mirror={mirror} onSelect={setPlateIndex} />
@@ -132,7 +137,7 @@ export default function Editor() {
   );
   const canvas = (
     <View style={styles.canvas}>
-      {error ? (
+      {status === 'error' ? (
         <OpenError />
       ) : ready ? (
         <EditorCanvas plate={plate} physicalCell={dev.physicalCell} />

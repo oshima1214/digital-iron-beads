@@ -149,6 +149,20 @@ function check(name, ok, detail = '') {
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     await page.waitForTimeout(500);
     check('brush: pen size remembered after reload', (await brushValue()) === '3マス', await brushValue());
+
+    // 範囲選択（2点タップ）：1点目のあとに案内が出て、2点目で矩形が選ばれる
+    await page.getByTestId('tool-select').click();
+    await page.getByTestId('range-mode').click();
+    await tap(2, 2);
+    check('range: first tap shows the hint', /もう一方の角をタップ/.test(await stats()), await stats());
+    check('range: nothing selected yet', (await page.getByTestId('selection-count').textContent()) === '0マス');
+    await tap(4, 3);
+    check('range: second tap selects 3×2', (await page.getByTestId('selection-count').textContent()) === '6マス', await page.getByTestId('selection-count').textContent());
+    check('range: hint is gone', !/もう一方の角/.test(await stats()), await stats());
+    await tap(8, 8);
+    await page.getByTestId('tool-pen').click();
+    await page.getByTestId('tool-select').click();
+    check('range: switching tools cancels the pending corner', !/もう一方の角/.test(await stats()), await stats());
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: `${__dirname}/failure-m3.png` });

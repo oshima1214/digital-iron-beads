@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { loadStatus } from '@/core/machines/loadStatus';
+import { navPhase } from '@/core/machines/phases';
 import { beadByIndex } from '@/core/palette/perler32';
 import { mirrorPlateIndex } from '@/core/sheet/plates';
 import { navStore, useNav } from '@/state/nav';
@@ -42,7 +44,9 @@ export default function Nav() {
     else router.replace({ pathname: '/project/[id]', params: { id } });
   };
 
+  const status = loadStatus({ wanted: id, loaded: project?.id, error: !!error });
   const ready = project?.id === id;
+  const phase = navPhase(order.length, done);
   // 反転中は見た目の位置で番号を数える（シート全体を反転）
   const visualIndex = mirror ? mirrorPlateIndex(plates, plateIndex) : plateIndex;
   const toData = (visual: number) => (mirror ? mirrorPlateIndex(plates, visual) : visual);
@@ -69,14 +73,14 @@ export default function Nav() {
           <Text style={styles.bannerText}>実物のプレートに合わせて大きさを調整してください ›</Text>
         </Pressable>
       )}
-      {order.length === 0 ? (
+      {phase === 'empty' ? (
         <View style={styles.center}>
           <Text style={styles.big} testID="nav-current">
             このプレートにはビーズがありません
           </Text>
           {!last && <Button title="次のプレートへ" onPress={() => st().setPlate(toData(visualIndex + 1))} />}
         </View>
-      ) : done ? (
+      ) : phase === 'done' ? (
         <View style={styles.center}>
           <Text style={styles.big} testID="nav-current">
             {last ? 'すべて完成！アイロンをかけましょう' : 'このプレートは完成！'}
@@ -149,9 +153,9 @@ export default function Nav() {
       </Pressable>
       <Button title="◀" variant="secondary" onPress={() => st().prev()} testID="nav-prev" style={styles.mini} />
       <Text style={[styles.big, { flex: 1 }]} testID="nav-current" numberOfLines={1}>
-        {order.length === 0
+        {phase === 'empty'
           ? 'ビーズなし'
-          : done
+          : phase === 'done'
             ? '完成！'
             : current
               ? `${colorIndex + 1}/${order.length} ${beadByIndex(current.index).code} ${beadByIndex(current.index).name} ${current.count}粒`
@@ -181,7 +185,7 @@ export default function Nav() {
   const stage = ready && plate && (
     // iPad ではプレートを重ねるので、シート領域はタッチを受けない
     <View style={styles.stage} pointerEvents={dev.isPad ? 'none' : 'auto'} testID="nav-stage">
-      <PlateStage sheet={project.sheet} plate={plate} focus={done ? undefined : current?.index} mirror={mirror} half={half} onFit={setFit} />
+      <PlateStage sheet={project.sheet} plate={plate} focus={phase === 'placing' ? current?.index : undefined} mirror={mirror} half={half} onFit={setFit} />
     </View>
   );
 
@@ -189,7 +193,7 @@ export default function Nav() {
   const compact = dev.isPad && dev.stage === 'compact';
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      {error ? (
+      {status === 'error' ? (
         <OpenError />
       ) : !ready ? (
         <ActivityIndicator style={{ flex: 1 }} />
