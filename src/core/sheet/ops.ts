@@ -31,6 +31,19 @@ export function paintCells(sheet: Sheet, cells: readonly Cell[], value: number):
   return out;
 }
 
+/**
+ * 太さ size のペンが c に触れたときに塗るマス（size × size の四角）。
+ * 奇数は c が中心。偶数は中心がないので、見た目で右と下に1マス多く広げる（mirror = 左右反転表示中）。
+ */
+export function brushCells(c: Cell, size: number, mirror: boolean): Cell[] {
+  const lo = -Math.floor((size - 1) / 2);
+  const hi = lo + size - 1;
+  const [x0, x1] = mirror ? [-hi, -lo] : [lo, hi];
+  const out: Cell[] = [];
+  for (let dy = lo; dy <= hi; dy++) for (let dx = x0; dx <= x1; dx++) out.push([c[0] + dx, c[1] + dy]);
+  return out;
+}
+
 export function rectCells(a: Cell, b: Cell): Cell[] {
   const out: Cell[] = [];
   for (let y = Math.min(a[1], b[1]); y <= Math.max(a[1], b[1]); y++) {

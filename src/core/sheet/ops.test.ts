@@ -1,4 +1,4 @@
-import { applyChanges, floodFill, lineCells, outline, paintCells, rectCells } from './ops';
+import { applyChanges, brushCells, floodFill, lineCells, outline, paintCells, rectCells } from './ops';
 import { createSheet, idx } from './sheet';
 import { sheetFrom } from './testing';
 
@@ -120,4 +120,23 @@ test('lineCells covers diagonal endpoints', () => {
 
 test('lineCells single point', () => {
   expect(lineCells([2, 1], [2, 1])).toEqual([[2, 1]]);
+});
+
+describe('brushCells', () => {
+  const sorted = (cells: [number, number][]) => cells.map(([x, y]) => `${x},${y}`).sort();
+  test('size 1 is the cell itself', () => {
+    expect(brushCells([4, 5], 1, false)).toEqual([[4, 5]]);
+  });
+  test('odd sizes are centered', () => {
+    expect(sorted(brushCells([4, 4], 3, false))).toEqual(sorted([[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4], [3, 5], [4, 5], [5, 5]]));
+    expect(brushCells([10, 10], 7, false)).toHaveLength(49);
+  });
+  test('even sizes extend right and down, mirrored view extends left', () => {
+    expect(sorted(brushCells([4, 4], 2, false))).toEqual(sorted([[4, 4], [5, 4], [4, 5], [5, 5]]));
+    expect(sorted(brushCells([4, 4], 2, true))).toEqual(sorted([[3, 4], [4, 4], [3, 5], [4, 5]]));
+  });
+  test('paintCells clips a brush at the sheet edge', () => {
+    const sheet = createSheet(13, 13);
+    expect(paintCells(sheet, brushCells([0, 0], 3, false), 1)).toHaveLength(4);
+  });
 });

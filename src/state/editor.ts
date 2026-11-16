@@ -4,7 +4,7 @@ import type { Project } from '@/core/file/project';
 import { History } from '@/core/history/history';
 import { PERLER32 } from '@/core/palette/perler32';
 import { countBeads } from '@/core/sheet/counts';
-import { applyChanges, type Cell, type CellChange, floodFill, lineCells, outline, paintCells, rectCells } from '@/core/sheet/ops';
+import { applyChanges, brushCells, type Cell, type CellChange, floodFill, lineCells, outline, paintCells, rectCells } from '@/core/sheet/ops';
 import { idx } from '@/core/sheet/sheet';
 import { createAutosaver } from '@/core/util/autosave';
 import type { ProjectRepo } from '@/platform/projectRepo.types';
@@ -54,7 +54,13 @@ export interface EditorState {
 
 const BLACK = PERLER32.find((b) => b.code === '5018')!.index;
 
-export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new Date(), autosaveMs = 500) {
+export function createEditorStore(
+  repo: ProjectRepo,
+  now: () => Date = () => new Date(),
+  autosaveMs = 500,
+  /** ペン・消しゴムの太さ（マス）。設定から読む */
+  brushSize: (tool: 'pen' | 'eraser') => number = () => 1,
+) {
   // 編集画面の保存はナビの進み具合（nav）を書き換えない。nav はナビ画面だけが書く（古い値で上書きしないように）
   const saver = createAutosaver<Project>(async (p) => {
     let nav = p.nav;
@@ -93,7 +99,10 @@ export function createEditorStore(repo: ProjectRepo, now: () => Date = () => new
       const p = get().project;
       if (!p || !stroke) return;
       const path = stroke.last ? lineCells(stroke.last, c) : [c];
-      const changes = paintCells(p.sheet, path, paintValue());
+      const size = brushSize(get().tool === 'eraser' ? 'eraser' : 'pen');
+      const mirror = get().mirror;
+      const cells = size <= 1 ? path : path.flatMap((pc) => brushCells(pc, size, mirror));
+      const changes = paintCells(p.sheet, cells, paintValue());
       for (const ch of changes) if (!stroke.changes.has(ch.i)) stroke.changes.set(ch.i, ch);
       applyChanges(p.sheet, changes, 'forward');
       stroke.last = c;
@@ -284,7 +293,12 @@ export function editorStore() {
   if (!shared) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { projectRepo } = require('@/platform/projectRepo') as typeof import('@/platform/projectRepo');
-    shared = createEditorStore(projectRepo);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { settingsStore } = require('./settings') as typeof import('./settings');
+    shared = createEditorStore(projectRepo, undefined, undefined, (tool) => {
+      const s = settingsStore().getState().settings;
+      return tool === 'pen' ? s.penSize : s.eraserSize;
+    });
   }
   return shared;
 }
