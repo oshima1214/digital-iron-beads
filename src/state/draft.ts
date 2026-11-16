@@ -23,6 +23,8 @@ export interface DraftState {
   error: 'open-failed' | null;
   startFromImage(img: RgbaImage, name: string): Promise<string>;
   open(id: string): Promise<void>;
+  /** 作品名を変える（前後の空白は除く。空なら変えない）。 */
+  setName(name: string): void;
   setCrop(rect: CropRect | undefined): void;
   setAdjust(brightness: number, contrast: number): void;
   setSettings(partial: Partial<ConvertSettings>): void;
@@ -82,6 +84,11 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
         }
       },
 
+      setName(name) {
+        const trimmed = name.trim();
+        if (!trimmed || trimmed === get().project?.name) return;
+        update((p) => ({ ...p, name: trimmed }));
+      },
       setCrop(rect) {
         update((p) => (p.source ? { ...p, source: { ...p.source, crop: rect } } : p));
         set({ preview: null });

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, type LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, type LayoutChangeEvent, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { adjustImage, type CropRect, resizeMax } from '@/core/image/adjust';
@@ -12,7 +12,7 @@ import { LabeledSlider } from '@/ui/LabeledSlider';
 import { NavBar } from '@/ui/NavBar';
 import { OpenError } from '@/ui/OpenError';
 import { RgbaView } from '@/ui/RgbaView';
-import { colors } from '@/ui/theme';
+import { colors, fonts } from '@/ui/theme';
 
 const PREVIEW_MAX = 512;
 
@@ -22,6 +22,10 @@ export default function Prepare() {
   const ready = status === 'ready';
   const image = useDraft((s) => s.image);
   const source = useDraft((s) => s.project?.source);
+  const name = useDraft((s) => s.project?.name);
+  // 空のまま確定したら入力欄を作り直して、保存済みの名前を表示し直す
+  const [nameKey, setNameKey] = useState(0);
+  const typed = useRef('');
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [b, setB] = useState<number | null>(null);
   const [c, setC] = useState<number | null>(null);
@@ -48,6 +52,37 @@ export default function Prepare() {
         left={{ title: '‹ 戻る', onPress: () => router.back() }}
         right={{ title: '次へ', testID: 'prepare-next', disabled: !ready, onPress: () => router.push({ pathname: '/new/convert', params: { id } }) }}
       />
+      {ready && name !== undefined && (
+        <View style={styles.nameRow}>
+          <Text style={styles.nameLabel} numberOfLines={1}>作品名</Text>
+          {/* 日本語入力を壊さないよう、入力中の文字は TextInput に任せる（value で上書きしない） */}
+          <TextInput
+            key={nameKey}
+            testID="prepare-name"
+            defaultValue={name}
+            onFocus={() => {
+              typed.current = name;
+            }}
+            onChangeText={(t) => {
+              typed.current = t;
+              draftStore().getState().setName(t);
+            }}
+            onBlur={() => {
+              if (!typed.current.trim()) {
+                typed.current = name;
+                setNameKey((k) => k + 1);
+              }
+            }}
+            placeholder="作品の名前"
+            maxLength={40}
+            clearButtonMode="while-editing"
+            returnKeyType="done"
+            autoCorrect={false}
+            style={styles.nameInput}
+            accessibilityLabel="作品名"
+          />
+        </View>
+      )}
       <View style={styles.imageArea} onLayout={(e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
         {status === 'error' ? (
           <OpenError />
@@ -83,6 +118,9 @@ export default function Prepare() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.panel, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, marginTop: 4 },
+  nameLabel: { fontFamily: fonts.regular, fontSize: 15, color: colors.subtext, flexShrink: 0 },
+  nameInput: { flex: 1, minWidth: 0, fontFamily: fonts.bold, fontSize: 17, color: colors.text, paddingVertical: 8 },
   imageArea: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
   panel: { backgroundColor: colors.panel, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 12 },
 });
