@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 
+import { type LoadStatus, loadStatus } from '@/core/machines/loadStatus';
+
 import { draftStore, useDraft } from './draft';
 
-export type DraftStatus = 'loading' | 'ready' | 'error';
+export type DraftStatus = LoadStatus;
 
 /** URL の id の作品が下書きに読み込まれていることを保証する（アプリ再開・直接遷移のとき）。 */
 export function useDraftFor(id: string | undefined): DraftStatus {
@@ -12,6 +14,5 @@ export function useDraftFor(id: string | undefined): DraftStatus {
   useEffect(() => {
     if (id && loadedId !== id && !error) void draftStore().getState().open(id);
   }, [id, loadedId, error]);
-  if (error) return 'error';
-  return !!id && loadedId === id && hasImage ? 'ready' : 'loading';
+  return loadStatus({ wanted: id, loaded: loadedId, error: !!error, complete: hasImage });
 }

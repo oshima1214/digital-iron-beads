@@ -34,16 +34,17 @@ async function readSource(p: Project): Promise<Uint8Array | null> {
 /** ⑥ 書き出し */
 export default function Export() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [project, setProject] = useState<Project | null>(null);
-  const [error, setError] = useState(false);
+  // 読み込みの状態（loading → ready / error）。作品は ready のときだけある
+  const [load, setLoad] = useState<{ status: 'loading' } | { status: 'ready'; project: Project } | { status: 'error' }>({ status: 'loading' });
+  const project = load.status === 'ready' ? load.project : null;
   const [mirror, setMirror] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     projectRepo
       .load(id)
-      .then(setProject)
-      .catch(() => setError(true));
+      .then((p) => setLoad({ status: 'ready', project: p }))
+      .catch(() => setLoad({ status: 'error' }));
   }, [id]);
 
   const run = async (f: () => Promise<void>) => {
@@ -63,7 +64,7 @@ export default function Export() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <NavBar title="書き出し・共有" left={{ title: '‹ 戻る', onPress: () => router.back() }} />
-      {error ? (
+      {load.status === 'error' ? (
         <OpenError />
       ) : !project ? (
         <ActivityIndicator style={{ flex: 1 }} />

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { screenForStage } from '@/core/machines/phases';
 import type { ProjectSummary } from '@/core/file/project';
 import { pickBeadsFile, readFileBytes } from '@/platform/incoming';
 import { projectRepo } from '@/platform/projectRepo';
@@ -41,8 +42,7 @@ export default function Home() {
     try {
       const { id, stage } = await importBeads(projectRepo, await readFileBytes(uri), new Date());
       await projectsStore().getState().refresh();
-      if (stage === 'setup') router.push({ pathname: '/new/convert', params: { id } });
-      else router.push({ pathname: '/project/[id]', params: { id } });
+      router.push({ pathname: screenForStage(stage), params: { id } });
     } catch (e) {
       console.warn(e);
       notify('読み込めませんでした', importErrorMessage(e));
@@ -68,8 +68,7 @@ export default function Home() {
   const cardSize = width > 0 ? Math.floor((width - GAP * (columns - 1)) / columns) - 16 : 0;
 
   const open = (item: ProjectSummary) => {
-    if (item.stage === 'setup') router.push({ pathname: '/new/convert', params: { id: item.id } });
-    else router.push({ pathname: '/project/[id]', params: { id: item.id } });
+    router.push({ pathname: screenForStage(item.stage), params: { id: item.id } });
   };
 
   const menu = async (item: ProjectSummary) => {
