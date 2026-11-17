@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, type LayoutChangeEvent, Platform, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createProject } from '@/core/file/project';
-import { beadByIndex, PERLER32 } from '@/core/palette/perler32';
+import { beadByIndex, PALETTE } from '@/core/palette/perler';
 import type { Sheet, SheetSize } from '@/core/sheet/sheet';
 import { maskToCells, placeText, textKey, textLayout, textLimitMessage } from '@/core/text/layout';
 import { projectRepo } from '@/platform/projectRepo';
@@ -19,7 +19,7 @@ import { SheetCanvas } from '@/ui/SheetCanvas';
 import { colors, fonts } from '@/ui/theme';
 
 const SIZES = [13, 21, 29, 58, 116].map((v) => ({ value: v as SheetSize, label: String(v) }));
-const idx = (code: string) => PERLER32.find((b) => b.code === code)!.index;
+const idx = (code: string) => PALETTE.find((b) => b.code === code)!.index;
 const MASK_CELL_PX = 16;
 /** マスの 35% 以上が文字なら文字のマスにする（0.5 だと細い部分が途切れる） */
 const TEXT_THRESHOLD = 0.35;

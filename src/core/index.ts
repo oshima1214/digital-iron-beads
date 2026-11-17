@@ -2,7 +2,7 @@ export const CORE_VERSION = 1;
 
 export * from './color/oklab';
 export * from './palette/types';
-export * from './palette/perler32';
+export * from './palette/perler';
 export * from './palette/nearest';
 export * from './sheet/sheet';
 export * from './sheet/plates';

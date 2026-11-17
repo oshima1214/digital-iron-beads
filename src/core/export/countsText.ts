@@ -1,4 +1,4 @@
-import { beadByIndex } from '../palette/perler32';
+import { beadByIndex } from '../palette/perler';
 import { countBeads } from '../sheet/counts';
 import type { Sheet } from '../sheet/sheet';
 

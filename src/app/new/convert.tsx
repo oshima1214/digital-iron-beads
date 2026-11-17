@@ -1,22 +1,26 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, type LayoutChangeEvent, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, type LayoutChangeEvent, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { recommendBeads } from '@/core/convert/convert';
 import type { ConvertSettings } from '@/core/convert/types';
-import { beadByIndex, PERLER32 } from '@/core/palette/perler32';
+import { beadByIndex, PALETTE } from '@/core/palette/perler';
+import type { BeadSet } from '@/core/palette/types';
 import { countBeads } from '@/core/sheet/counts';
 import type { SheetSize } from '@/core/sheet/sheet';
-import { draftStore, useDraft } from '@/state/draft';
+import { beadsNeeded, draftStore, useDraft } from '@/state/draft';
+import { settingsStore, useSettings } from '@/state/settings';
 import { useDraftFor } from '@/state/useDraftFor';
-import { BeadOnePicker, BeadSetPicker, beadSetLabel } from '@/ui/BeadPicker';
+import { BeadOnePicker } from '@/ui/BeadPicker';
+import { BeadSetPanel } from '@/ui/beads/BeadSetPanel';
+import { ConvertPreviewCanvas } from '@/ui/ConvertPreviewCanvas';
 import { LabeledSlider } from '@/ui/LabeledSlider';
-import { notify } from '@/ui/dialogs';
+import { notify, showMenu } from '@/ui/dialogs';
 import { NavBar } from '@/ui/NavBar';
 import { OpenError } from '@/ui/OpenError';
 import { Segmented } from '@/ui/Segmented';
 import { RowValue, SettingRow } from '@/ui/SettingRow';
-import { SheetCanvas } from '@/ui/SheetCanvas';
 import { colors, fonts } from '@/ui/theme';
 
 const SIZES: readonly { value: SheetSize; label: string }[] = [13, 21, 29, 58, 116].map((v) => ({ value: v as SheetSize, label: String(v) }));
@@ -30,7 +34,13 @@ const NOISE = [
   { value: 1, label: '弱' },
   { value: 2, label: '強' },
 ] as const;
-const idx = (code: string) => PERLER32.find((b) => b.code === code)!.index;
+const idx = (code: string) => PALETTE.find((b) => b.code === code)!.index;
+/** 「使うビーズ」の切り替え。8色と手持ちは「…」のパネルで選ぶ */
+const MAIN_SETS: readonly { value: BeadSet; label: string }[] = [
+  { value: 'original', label: '元の色' },
+  { value: '16', label: '16色' },
+  { value: '32', label: '32色' },
+];
 const DEFAULT_TWO = { dark: idx('5018'), light: idx('5003'), threshold: 0.5 };
 
 export default function Convert() {
@@ -42,8 +52,11 @@ export default function Convert() {
   const busy = useDraft((s) => s.busy);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [converting, setConverting] = useState(false);
-  const [picker, setPicker] = useState<null | 'set' | 'dark' | 'light'>(null);
-  const [maxLocal, setMaxLocal] = useState<number | null>(null);
+  const [picker, setPicker] = useState<null | 'dark' | 'light'>(null);
+  // 「…」で開く使うビーズのパネル（開いている間は、設定の欄の代わりに出す）
+  const [beadPanel, setBeadPanel] = useState(false);
+  const [recommended, setRecommended] = useState<number[] | null>(null);
+  const owned = useSettings((s) => s.settings.ownedBeads);
   const [thrLocal, setThrLocal] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -68,7 +81,44 @@ export default function Convert() {
     run(quality);
   };
 
+  const chooseSet = (beadSet: BeadSet, quality: 'fast' | 'full' = 'full', list: readonly number[] = owned) => {
+    draftStore().getState().setBeadSet(beadSet, list);
+    run(quality);
+  };
+  const changeOwned = (list: number[]) => {
+    void settingsStore().getState().setOwnedBeads(list);
+    chooseSet('owned', 'fast', list);
+  };
+  const openBeadPanel = () => {
+    setBeadPanel(true);
+    setRecommended(null);
+    // この画像に合う色（64色で変換したときに使われる色）。重いので画面を出してから計算する
+    setTimeout(() => {
+      const st = draftStore().getState();
+      const img = st.processed();
+      const s = st.project?.source?.convert;
+      if (img && s) setRecommended(recommendBeads(img, s));
+    }, 0);
+  };
+  const closeBeadPanel = () => {
+    setBeadPanel(false);
+    run('full');
+  };
+
   const done = async () => {
+    const s = draftStore().getState().project?.source?.convert;
+    if (s && beadsNeeded(s) !== 'ready') {
+      // 元の色（または手持ちが0色）のままでは作品にできない：どのビーズで作るかを聞く
+      const options: { label: string; set: BeadSet }[] = [
+        { label: '16色', set: '16' },
+        { label: '32色', set: '32' },
+        { label: '8色', set: '8' },
+        ...(owned.length > 0 ? [{ label: `手持ち（${owned.length}色）`, set: 'owned' as const }] : []),
+      ];
+      const i = await showMenu('どのビーズで作りますか？', options.map((o) => o.label));
+      if (i === null) return;
+      draftStore().getState().setBeadSet(options[i].set, owned);
+    }
     try {
       const pid = await draftStore().getState().finish();
       router.replace({ pathname: '/project/[id]', params: { id: pid } });
@@ -78,7 +128,7 @@ export default function Convert() {
     }
   };
 
-  const counts = preview ? countBeads(preview) : [];
+  const counts = preview?.kind === 'beads' ? countBeads(preview.sheet) : [];
   const total = counts.reduce((a, c) => a + c.count, 0);
   const two = settings?.twoColor ?? DEFAULT_TWO;
 
@@ -93,16 +143,30 @@ export default function Convert() {
         {status === 'error' ? (
           <OpenError />
         ) : preview && box.w > 0 ? (
-          <SheetCanvas testID="convert-preview" sheet={preview} width={box.w} height={box.h} />
+          <ConvertPreviewCanvas testID="convert-preview" preview={preview} width={box.w} height={box.h} />
         ) : (
           <ActivityIndicator />
         )}
         {(converting || busy) && <ActivityIndicator style={styles.spinner} />}
       </View>
       <Text style={styles.stats} testID="convert-stats">
-        {preview ? `使用 ${counts.length}色 ・ ${total}粒` : ' '}
+        {preview?.kind === 'beads'
+          ? `使用 ${counts.length}色 ・ ${total}粒`
+          : preview?.kind === 'original'
+            ? '元の色で表示中（ビーズの色ではありません）'
+            : ' '}
       </Text>
-      {settings && (
+      {settings && beadPanel && (
+        <BeadSetPanel
+          beadSet={settings.beadSet}
+          owned={owned}
+          recommended={recommended}
+          onSet={(v) => chooseSet(v)}
+          onOwned={changeOwned}
+          onClose={closeBeadPanel}
+        />
+      )}
+      {settings && !beadPanel && (
         <View style={styles.panel}>
           <SettingRow label="サイズ">
             <Segmented testID="size" options={SIZES} value={settings.size} onChange={(v) => set({ size: v })} />
@@ -142,26 +206,19 @@ export default function Convert() {
             </>
           ) : (
             <>
-              <SettingRow label="使うビーズ" onPress={() => setPicker('set')} testID="beads-row">
-                <RowValue text={beadSetLabel(settings.allowedBeads)} />
+              <SettingRow label="使うビーズ">
+                <View style={styles.beadRow}>
+                  <Segmented<BeadSet> testID="bead-main" options={MAIN_SETS} value={settings.beadSet} onChange={(v) => chooseSet(v)} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="ほかのビーズ（8色・16色・32色・手持ち）"
+                    testID="beads-more"
+                    onPress={openBeadPanel}
+                    style={[styles.more, (settings.beadSet === '8' || settings.beadSet === 'owned') && styles.moreOn]}>
+                    <Text style={styles.moreText}>{settings.beadSet === '8' ? '8色 …' : settings.beadSet === 'owned' ? `手持ち${settings.allowedBeads.length} …` : '…'}</Text>
+                  </Pressable>
+                </View>
               </SettingRow>
-              <View style={styles.sliderRow}>
-                <LabeledSlider
-                  label="色数の上限"
-                  testID="max-colors"
-                  value={maxLocal ?? settings.maxColors}
-                  min={2}
-                  max={32}
-                  onChange={(v) => {
-                    setMaxLocal(v);
-                    set({ maxColors: Math.round(v) }, 'fast');
-                  }}
-                  onComplete={(v) => {
-                    setMaxLocal(null);
-                    set({ maxColors: Math.round(v) });
-                  }}
-                />
-              </View>
             </>
           )}
           <SettingRow label="ノイズ掃除">
@@ -179,14 +236,6 @@ export default function Convert() {
       )}
       {settings && (
         <>
-          <BeadSetPicker
-            visible={picker === 'set'}
-            value={settings.allowedBeads}
-            onClose={(v) => {
-              setPicker(null);
-              set({ allowedBeads: v });
-            }}
-          />
           <BeadOnePicker
             visible={picker === 'dark' || picker === 'light'}
             title={picker === 'dark' ? '暗い色' : '明るい色'}
@@ -209,5 +258,9 @@ const styles = StyleSheet.create({
   spinner: { position: 'absolute', top: 8, right: 8 },
   stats: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, marginVertical: 6 },
   panel: { backgroundColor: colors.panel, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
+  beadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  more: { minHeight: 32, minWidth: 40, paddingHorizontal: 8, borderRadius: 7, backgroundColor: colors.separator, alignItems: 'center', justifyContent: 'center' },
+  moreOn: { backgroundColor: colors.accent },
+  moreText: { fontFamily: fonts.bold, fontSize: 13, color: colors.text },
   sliderRow: { paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
 });

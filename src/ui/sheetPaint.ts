@@ -1,6 +1,7 @@
 import { type SkCanvas, Skia } from '@shopify/react-native-skia';
 
-import { beadByIndex } from '@/core/palette/perler32';
+import { beadByIndex } from '@/core/palette/perler';
+import type { RgbaImage } from '@/core/convert/types';
 import { PLATE, type Sheet } from '@/core/sheet/sheet';
 
 export const SHEET_COLORS = {
@@ -123,4 +124,39 @@ export function sheetPixels(sheet: Sheet): Uint8Array {
     out.set([rgb[0], rgb[1], rgb[2], 255], i * 4);
   }
   return out;
+}
+
+/**
+ * 「元の色」のプレビュー：ビーズの色に変える前の色で、ビーズと同じ丸を描く。
+ * image は 1ピクセル = 1マス。透明のマスは背景（小さな点）。
+ */
+export function paintOriginal(canvas: SkCanvas, image: RgbaImage, cell: number): void {
+  const fill = Skia.Paint();
+  fill.setAntiAlias(true);
+  fill.setColor(Skia.Color(SHEET_COLORS.background));
+  canvas.drawRect(Skia.XYWHRect(0, 0, image.width * cell, image.height * cell), fill);
+  const ring = Skia.Paint();
+  ring.setAntiAlias(true);
+  ring.setStyle(1);
+  ring.setStrokeWidth(1);
+  ring.setColor(Skia.Color(SHEET_COLORS.whiteRing));
+  const r = (cell * 0.98) / 2;
+  const dot = Math.max(0.5, (cell * 0.14) / 2);
+  const d = image.data;
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      const o = (y * image.width + x) * 4;
+      const cx = (x + 0.5) * cell;
+      const cy = (y + 0.5) * cell;
+      if (d[o + 3] === 0) {
+        fill.setColor(Skia.Color(SHEET_COLORS.dot));
+        canvas.drawCircle(cx, cy, dot, fill);
+        continue;
+      }
+      fill.setColor(Skia.Color(`rgb(${d[o]},${d[o + 1]},${d[o + 2]})`));
+      canvas.drawCircle(cx, cy, r, fill);
+      // 白に近い色は、白いビーズと同じように縁を描く
+      if (d[o] > 235 && d[o + 1] > 235 && d[o + 2] > 235) canvas.drawCircle(cx, cy, r - 0.5, ring);
+    }
+  }
 }

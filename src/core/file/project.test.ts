@@ -27,7 +27,7 @@ test('serialize → parse roundtrip keeps cells and source', () => {
 
 test('roundtrip works for every sheet size including 116', () => {
   const sheet = createSheet(116, 116);
-  for (let i = 0; i < sheet.cells.length; i++) sheet.cells[i] = i % 33;
+  for (let i = 0; i < sheet.cells.length; i++) sheet.cells[i] = i % 65;
   const back = parseProject(serializeProject(createProject('x', sheet, now)));
   expect([...back.sheet.cells]).toEqual([...sheet.cells]);
 });
@@ -41,7 +41,7 @@ test('parseProject rejects wrong cells length and out-of-range values', () => {
   short.sheet.cells = 'AAAA';
   expect(() => parseProject(JSON.stringify(short))).toThrow(ProjectParseError);
   const bad = sample();
-  bad.sheet.cells[5] = 40;
+  bad.sheet.cells[5] = 65;
   expect(() => parseProject(serializeProject(bad))).toThrow(ProjectParseError);
   expect(() => parseProject(withField({ sheet: { width: 30, height: 30, cells: '', paletteId: 'perler-32' } }))).toThrow(ProjectParseError);
 });
@@ -53,4 +53,22 @@ test('parseProject rejects broken JSON and wrong stage', () => {
 
 test('newProjectId is unique across calls', () => {
   expect(new Set(Array.from({ length: 100 }, newProjectId)).size).toBe(100);
+});
+
+test('older 32-color projects open as 64-color projects (indices 1..32 are the same beads)', () => {
+  const old = JSON.parse(serializeProject(sample()));
+  old.sheet.paletteId = 'perler-32';
+  const back = parseProject(JSON.stringify(old));
+  expect(back.sheet.paletteId).toBe('perler-64');
+  expect(back.sheet.cells[840]).toBe(32);
+});
+
+test('older convert settings without beadSet get one from allowedBeads; maxColors is dropped', () => {
+  const old = JSON.parse(serializeProject(sample()));
+  delete old.source.convert.beadSet;
+  old.source.convert.allowedBeads = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+  old.source.convert.maxColors = 12;
+  const back = parseProject(JSON.stringify(old));
+  expect(back.source!.convert.beadSet).toBe('16');
+  expect('maxColors' in back.source!.convert).toBe(false);
 });

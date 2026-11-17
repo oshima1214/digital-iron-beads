@@ -1,8 +1,10 @@
 import { createStore, useStore } from 'zustand';
 
-import { convertImage } from '@/core/convert/convert';
+import { convertImage, originalCells } from '@/core/convert/convert';
 import { type ConvertSettings, defaultConvertSettings, type RgbaImage, WORK_CELL_PX } from '@/core/convert/types';
 import { createProject, type Project } from '@/core/file/project';
+import { beadsForSet } from '@/core/palette/perler';
+import type { BeadSet } from '@/core/palette/types';
 import { adjustImage, type CropRect, cropImage } from '@/core/image/adjust';
 import { createSheet, type Sheet } from '@/core/sheet/sheet';
 import { createAutosaver } from '@/core/util/autosave';
@@ -13,11 +15,35 @@ export interface ImageIO {
   load(uri: string): Promise<RgbaImage>;
 }
 
+/**
+ * ビーズ化の画面のプレビュー。
+ *   original = 元の色（ビーズに変える前）／ beads = ビーズにした結果／ no-beads = 手持ちが0色で変換できない
+ */
+export type ConvertPreview = { kind: 'original'; image: RgbaImage } | { kind: 'beads'; sheet: Sheet } | { kind: 'no-beads' };
+
+/** 「元の色」のまま、または手持ちが0色のまま「完了」しようとした（どのビーズで作るかを先に決める）。 */
+export class NeedsBeadsError extends Error {
+  constructor() {
+    super('choose beads before finishing');
+    this.name = 'NeedsBeadsError';
+  }
+}
+
+/**
+ * ビーズにできるか。2色は自分の2色を使うので、使うビーズの組み合わせに関係なく ready。
+ *   original = 元の色で見ているだけ／ no-beads = 手持ちが0色／ ready = ビーズにできる
+ */
+export function beadsNeeded(s: ConvertSettings): 'original' | 'no-beads' | 'ready' {
+  if (s.preset === 'twoColor') return 'ready';
+  if (s.beadSet === 'original') return 'original';
+  return s.allowedBeads.length === 0 ? 'no-beads' : 'ready';
+}
+
 export interface DraftState {
   project: Project | null;
   /** 取り込んだ元画像（長い辺 2048px 以下） */
   image: RgbaImage | null;
-  preview: Sheet | null;
+  preview: ConvertPreview | null;
   busy: boolean;
   /** open に失敗したとき 'open-failed' */
   error: 'open-failed' | null;
@@ -28,6 +54,8 @@ export interface DraftState {
   setCrop(rect: CropRect | undefined): void;
   setAdjust(brightness: number, contrast: number): void;
   setSettings(partial: Partial<ConvertSettings>): void;
+  /** 使うビーズの組み合わせを変える。owned は手持ちの一覧（設定）を写す */
+  setBeadSet(set: BeadSet, owned: readonly number[]): void;
   /** 切り抜き・明るさ調整を反映した画像 */
   processed(): RgbaImage | null;
   convertPreview(quality: 'fast' | 'full'): void;
@@ -105,6 +133,14 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
         });
       },
 
+      setBeadSet(beadSet, owned) {
+        update((p) => {
+          if (!p.source) return p;
+          const allowedBeads = beadSet === 'original' ? p.source.convert.allowedBeads : beadsForSet(beadSet, owned);
+          return { ...p, source: { ...p.source, convert: { ...p.source.convert, beadSet, allowedBeads } } };
+        });
+      },
+
       processed() {
         const { image, project } = get();
         const src = project?.source;
@@ -121,18 +157,23 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
         const img = get().processed();
         const settings = get().project?.source?.convert;
         if (!img || !settings) return;
-        set({ preview: convertImage(img, settings, quality === 'fast' ? FAST_CELL_PX : WORK_CELL_PX) });
+        const cellPx = quality === 'fast' ? FAST_CELL_PX : WORK_CELL_PX;
+        const need = beadsNeeded(settings);
+        if (need === 'original') set({ preview: { kind: 'original', image: originalCells(img, settings, cellPx) } });
+        else if (need === 'no-beads') set({ preview: { kind: 'no-beads' } });
+        else set({ preview: { kind: 'beads', sheet: convertImage(img, settings, cellPx) } });
       },
 
       async finish() {
         const p = get().project;
         const img = get().processed();
         if (!p || !img || !p.source) throw new Error('nothing to finish');
+        if (beadsNeeded(p.source.convert) !== 'ready') throw new NeedsBeadsError();
         set({ busy: true });
         try {
           const sheet = convertImage(img, p.source.convert, WORK_CELL_PX);
           const done: Project = { ...p, sheet, stage: 'edit', updatedAt: now().toISOString() };
-          set({ project: done, preview: sheet });
+          set({ project: done, preview: { kind: 'beads', sheet } });
           saver.schedule(done);
           await saver.flush();
           if (saver.pending) throw new Error('could not save the project', { cause: saver.lastError });

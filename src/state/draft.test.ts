@@ -4,7 +4,7 @@ import { createSheet } from '@/core/sheet/sheet';
 import { drawRect, solid } from '@/core/convert/testing';
 import { createMemoryRepo } from '@/platform/memoryRepo';
 
-import { createDraftStore } from './draft';
+import { createDraftStore, NeedsBeadsError } from './draft';
 
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
@@ -26,6 +26,11 @@ function setup() {
   return { repo, store, img };
 }
 
+const beadsOf = (store: ReturnType<typeof setup>['store']) => {
+  const p = store.getState().preview;
+  return p?.kind === 'beads' ? p.sheet : null;
+};
+
 test('startFromImage saves a setup-stage project with source and default settings', async () => {
   const { repo, store, img } = setup();
   const id = await store.getState().startFromImage(img, '作品 1');
@@ -39,39 +44,42 @@ test('startFromImage saves a setup-stage project with source and default setting
 test('setSettings autosaves after 500ms', async () => {
   const { repo, store, img } = setup();
   const id = await store.getState().startFromImage(img, '作品 1');
-  store.getState().setSettings({ size: 13, maxColors: 5 });
+  store.getState().setSettings({ size: 13, noise: 2 });
   expect((await repo.load(id)).source?.convert.size).toBe(29);
   await jest.advanceTimersByTimeAsync(500);
   const saved = (await repo.load(id)).source?.convert;
-  expect([saved?.size, saved?.maxColors]).toEqual([13, 5]);
+  expect([saved?.size, saved?.noise]).toEqual([13, 2]);
 });
 
 test('convertPreview fast/full produce a sheet of the chosen size', async () => {
   const { store, img } = setup();
   await store.getState().startFromImage(img, '作品 1');
   store.getState().setSettings({ size: 13 });
+  store.getState().setBeadSet('32', []);
   store.getState().convertPreview('fast');
-  expect(store.getState().preview?.width).toBe(13);
+  expect(beadsOf(store)?.width).toBe(13);
   store.getState().convertPreview('full');
-  expect(store.getState().preview?.cells.some((v) => v !== 0)).toBe(true);
+  expect(beadsOf(store)?.cells.some((v) => v !== 0)).toBe(true);
 });
 
 test('crop and adjust are applied before conversion', async () => {
   const { store, img } = setup();
   await store.getState().startFromImage(img, '作品 1');
   store.getState().setSettings({ size: 13, removeBackground: false });
+  store.getState().setBeadSet('32', []);
   store.getState().setCrop({ x: 20, y: 20, w: 40, h: 40 }); // 赤だけ
   store.getState().convertPreview('full');
-  expect(new Set(store.getState().preview?.cells)).toEqual(new Set([3])); // 3 = 5005 あか
+  expect(new Set(beadsOf(store)?.cells)).toEqual(new Set([3])); // 3 = 5005 あか
   store.getState().setAdjust(100, 0); // 真っ白
   store.getState().convertPreview('full');
-  expect(new Set(store.getState().preview?.cells)).toEqual(new Set([1])); // 1 = 5001 しろ
+  expect(new Set(beadsOf(store)?.cells)).toEqual(new Set([1])); // 1 = 5001 しろ
 });
 
 test('finish converts, saves stage edit and the sheet', async () => {
   const { repo, store, img } = setup();
   const id = await store.getState().startFromImage(img, '作品 1');
   store.getState().setSettings({ size: 21 });
+  store.getState().setBeadSet('16', []);
   await store.getState().finish();
   const p = await repo.load(id);
   expect(p.stage).toBe('edit');
@@ -144,4 +152,40 @@ test('setName trims, autosaves, and ignores blank names', async () => {
   expect(store.getState().project?.name).toBe('ねこ');
   await jest.advanceTimersByTimeAsync(600);
   expect((await repo.load(id)).name).toBe('ねこ');
+});
+
+test('bead sets: original shows the image colors, owned with nothing chosen cannot convert', async () => {
+  const { store, img } = setup();
+  await store.getState().startFromImage(img, '作品 1');
+  expect(store.getState().project?.source?.convert.beadSet).toBe('original');
+  store.getState().setSettings({ size: 13 });
+  store.getState().convertPreview('fast');
+  const p = store.getState().preview;
+  expect(p?.kind).toBe('original');
+  if (p?.kind === 'original') expect([p.image.width, p.image.height]).toEqual([13, 13]);
+  store.getState().setBeadSet('owned', []);
+  store.getState().convertPreview('fast');
+  expect(store.getState().preview?.kind).toBe('no-beads');
+  store.getState().setBeadSet('owned', [40, 1]);
+  expect(store.getState().project?.source?.convert.allowedBeads).toEqual([1, 40]);
+  store.getState().convertPreview('fast');
+  expect(store.getState().preview?.kind).toBe('beads');
+});
+
+test('finish refuses to make a project from the original colors (asks for beads first)', async () => {
+  const { repo, store, img } = setup();
+  const id = await store.getState().startFromImage(img, '作品 1');
+  await expect(store.getState().finish()).rejects.toThrow(NeedsBeadsError);
+  store.getState().setBeadSet('owned', []);
+  await expect(store.getState().finish()).rejects.toThrow(NeedsBeadsError);
+  expect((await repo.load(id)).stage).toBe('setup');
+});
+
+test('two-color ignores the bead set (it has its own two beads)', async () => {
+  const { store, img } = setup();
+  await store.getState().startFromImage(img, '作品 1');
+  store.getState().setSettings({ size: 13, preset: 'twoColor', twoColor: { dark: 8, light: 1, threshold: 0.5 } });
+  store.getState().convertPreview('fast');
+  expect(store.getState().preview?.kind).toBe('beads');
+  await expect(store.getState().finish()).resolves.toBeTruthy();
 });

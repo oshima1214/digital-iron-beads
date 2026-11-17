@@ -3,7 +3,7 @@ import { createStore, useStore } from 'zustand';
 import type { Project } from '@/core/file/project';
 import { History } from '@/core/history/history';
 import { RANGE_IDLE, type RangeEvent, rangeOf, type RangeState, rangeStep } from '@/core/machines/rangeSelect';
-import { PERLER32 } from '@/core/palette/perler32';
+import { PALETTE } from '@/core/palette/perler';
 import { countBeads } from '@/core/sheet/counts';
 import { applyChanges, brushCells, type Cell, type CellChange, floodFill, lineCells, outline, paintCells, rectCells } from '@/core/sheet/ops';
 import { idx } from '@/core/sheet/sheet';
@@ -58,7 +58,7 @@ export interface EditorState {
   close(): Promise<void>;
 }
 
-const BLACK = PERLER32.find((b) => b.code === '5018')!.index;
+const BLACK = PALETTE.find((b) => b.code === '5018')!.index;
 
 export function createEditorStore(
   repo: ProjectRepo,

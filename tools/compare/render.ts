@@ -1,5 +1,5 @@
 import type { RgbaImage } from '../../src/core/convert/types';
-import { beadByIndex } from '../../src/core/palette/perler32';
+import { beadByIndex } from '../../src/core/palette/perler';
 import type { Sheet } from '../../src/core/sheet/sheet';
 
 /** シートを 1マス cellPx の画像に描く（ビーズは丸、白ビーズは灰色の縁、背景は小さな点）。 */

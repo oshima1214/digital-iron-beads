@@ -1,6 +1,6 @@
 import { srgbToOklab } from '../color/oklab';
 import { buildNearestLut, nearestIndex, nearestToOklab } from './nearest';
-import { ALL32, PERLER32 } from './perler32';
+import { ALL32, PERLER32 } from './perler';
 
 const beadIdx = (code: string) => PERLER32.find((b) => b.code === code)!.index;
 

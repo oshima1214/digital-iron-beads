@@ -22,7 +22,7 @@ export async function sharePng(sheet: Sheet, name: string, mirror: boolean): Pro
   c.height = sheet.height * PNG_CELL_PX;
   const ctx = c.getContext('2d');
   if (!ctx) throw new Error('canvas is not available');
-  const { beadByIndex } = await import('@/core/palette/perler32');
+  const { beadByIndex } = await import('@/core/palette/perler');
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, c.width, c.height);
   for (let i = 0; i < sheet.cells.length; i++) {
