@@ -37,6 +37,7 @@ export default function Editor() {
   const mirror = useEditor((s) => s.mirror);
   const melted = useEditor((s) => s.melted);
   const rangePhase = useEditor((s) => s.rangePhase);
+  const notice = useEditor((s) => s.notice);
   const canUndo = useEditor((s) => s.canUndo);
   const canRedo = useEditor((s) => s.canRedo);
   const [showCounts, setShowCounts] = useState(false);
@@ -122,6 +123,10 @@ export default function Editor() {
           <SelectionBar />
         ) : mode === 'brush' ? (
           <BrushBar tool={tool === 'eraser' ? 'eraser' : 'pen'} />
+        ) : notice === 'same-color' ? (
+          <Text style={[styles.hint, styles.notice]} testID="editor-notice">
+            もう同じ色です。下で別の色を選んでからタップしてください
+          </Text>
         ) : (
           <Text style={styles.hint}>{HINTS[tool]}</Text>
         )}
@@ -183,6 +188,7 @@ const styles = StyleSheet.create({
   off: { opacity: 0.3 },
   stats: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, marginBottom: 4 },
   canvas: { flex: 1, backgroundColor: colors.panel, borderRadius: 12, overflow: 'hidden' },
+  notice: { color: colors.text, fontFamily: fonts.bold },
   hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, paddingHorizontal: 6 },
   panel: { backgroundColor: colors.panel, borderRadius: 12, paddingHorizontal: 6, marginVertical: 8 },
   sidePanel: { width: 360, marginVertical: 0 },

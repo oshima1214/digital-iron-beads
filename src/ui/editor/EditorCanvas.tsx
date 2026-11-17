@@ -1,4 +1,4 @@
-import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platform, View } from 'react-native';
 
 import { fitPlate, PLATE_CELLS } from '@/core/physical';
@@ -45,8 +45,6 @@ export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) 
   const range = useEditor((s) => s.range);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState<Transform>(IDENTITY);
-  const viewRef = useRef<ComponentRef<typeof View>>(null);
-  const origin = useRef({ x: 0, y: 0 });
   const tracker = useRef(createTouchTracker(CAN_ZOOM));
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinchStart = useRef<{ t: Transform; a: Pt; b: Pt } | null>(null);
@@ -79,12 +77,14 @@ export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) 
   // useMemo 内のクロージャーまで「描画中のアクセス」と判定するため、このブロックだけ無効にする（CropBox と同じ）。
   /* eslint-disable react-hooks/refs, react-hooks/purity */
   const responder = useMemo(() => {
-    const rel = (x: number, y: number): Pt => ({ x: x - origin.current.x, y: y - origin.current.y });
+    // 座標はこの View の左上からの位置（locationX/Y）を使う。子はタッチを受けない（box-only）ので、
+    // いつもこの View が基準になる。画面の位置を測って引く方法は、測るのが非同期で、画面が動いた直後
+    // （画面の切り替えのアニメーション中など）に古い位置を使い、タップの位置がずれることがあった。
     const touchesOf = (e: GestureResponderEvent): TouchPoint[] => {
       const ne = e.nativeEvent;
       // Web のマウス操作では touches が空のことがあるので、イベント自身の座標を使う
-      if (!ne.touches || ne.touches.length === 0) return [{ id: Number(ne.identifier ?? 0), p: rel(ne.pageX, ne.pageY) }];
-      return ne.touches.map((tt) => ({ id: Number(tt.identifier), p: rel(tt.pageX, tt.pageY) }));
+      if (!ne.touches || ne.touches.length === 0) return [{ id: Number(ne.identifier ?? 0), p: { x: ne.locationX, y: ne.locationY } }];
+      return ne.touches.map((tt) => ({ id: Number(tt.identifier), p: { x: tt.locationX, y: tt.locationY } }));
     };
     const cellAt = (p: Pt): Cell | null => {
       if (!sheet || !full) return null;
@@ -149,7 +149,6 @@ export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) 
       onStartShouldSetPanResponder: () => !melted,
       onMoveShouldSetPanResponder: () => !melted,
       onPanResponderGrant: (e) => {
-        viewRef.current?.measureInWindow((x: number, y: number) => (origin.current = { x, y }));
         const [first] = touchesOf(e);
         run(tracker.current.start(first.id, first.p, Date.now()));
         clearHold();
@@ -170,11 +169,10 @@ export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) 
 
   const onLayout = (e: LayoutChangeEvent) => {
     setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
-    viewRef.current?.measureInWindow((x: number, y: number) => (origin.current = { x, y }));
   };
 
   return (
-    <View ref={viewRef} testID="editor-canvas" style={{ flex: 1, overflow: 'hidden' }} onLayout={onLayout} {...responder.panHandlers}>
+    <View testID="editor-canvas" pointerEvents="box-only" style={{ flex: 1, overflow: 'hidden' }} onLayout={onLayout} {...responder.panHandlers}>
       {sheet && layout.cell > 0 && (
         <View
           style={{

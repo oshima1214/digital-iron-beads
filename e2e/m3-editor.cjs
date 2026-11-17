@@ -71,6 +71,20 @@ function check(name, ok, detail = '') {
     check('undo bucket', /1色 ・ 6粒/.test(await stats()), await stats());
     await page.getByTestId('redo').click();
     check('redo bucket', /2色 ・ 169粒/.test(await stats()), await stats());
+    // 同じ色の場所をタップ：何も変わらないが、理由を出す
+    await tap(10, 10);
+    check('bucket same color shows notice', await page.getByTestId('editor-notice').isVisible());
+    await page.getByTestId('color-5005').click();
+    check('choosing a color clears the notice', (await page.getByTestId('editor-notice').count()) === 0);
+    // 指が少しずれたタップ（9px）でも塗れる
+    const [bx, by] = await cellPos(10, 10);
+    await page.mouse.move(bx, by);
+    await page.mouse.down();
+    await page.mouse.move(bx + 9, by, { steps: 3 });
+    await page.mouse.up();
+    check('bucket works with a slightly sliding tap', /1色 ・ 169粒/.test(await stats()), await stats()); // 黄色の背景が赤に
+    await page.getByTestId('undo').click();
+    check('undo sliding-tap bucket', /2色 ・ 169粒/.test(await stats()), await stats());
 
     await page.getByTestId('tool-select').click();
     await tap(0, 0);

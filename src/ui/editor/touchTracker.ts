@@ -3,6 +3,7 @@
  * - iPhone（ズームあり）: 指を置いてもすぐには塗らない。100ms 静止するか 6px 動いたら開始。
  *   その前に2本目の指が来たらピンチとして扱い、何も塗らない。ダブルタップでズームを戻す。
  * - iPad・Web（ズームなし）: すぐに開始する。最初に置いた指だけを追い、ほかの指は無視する。
+ * - 離すまでに TAP_PX 以上動かなければ、なぞりとは別に tap も出す（バケツ・1マス選択はこれで動く）。
  */
 export interface Pt {
   x: number;
@@ -25,6 +26,8 @@ export interface TouchPoint {
 
 export const HOLD_MS = 100;
 export const MOVE_PX = 6;
+/** これより動かなければタップ（バケツ・1マス選択）とみなす。指は離すときに少しずれるので MOVE_PX より広い */
+export const TAP_PX = 12;
 export const DOUBLE_TAP_MS = 300;
 export const DOUBLE_TAP_PX = 20;
 
@@ -92,13 +95,13 @@ export function createTouchTracker(canZoom: boolean) {
       if (state === 'pending') {
         if (dist(me.p, startP) > MOVE_PX || t - startT >= HOLD_MS) {
           state = 'tool';
-          moved = true;
+          if (dist(me.p, startP) > TAP_PX) moved = true;
           return [{ type: 'begin', p: startP }, { type: 'move', p: me.p }];
         }
         return [];
       }
       if (state === 'tool') {
-        if (dist(me.p, startP) > MOVE_PX) moved = true;
+        if (dist(me.p, startP) > TAP_PX) moved = true;
         return [{ type: 'move', p: me.p }];
       }
       return [];
