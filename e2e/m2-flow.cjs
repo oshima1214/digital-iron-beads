@@ -147,42 +147,50 @@ async function createFromPhoto(page, file = FACE) {
     await page.getByTestId('bead-set-owned').click();
     const ownedCount = () => page.getByTestId('bead-set-count').textContent();
     check('owned: starts with nothing chosen', (await ownedCount()) === '手持ち 0色を選択中', await ownedCount());
-    await page.waitForTimeout(500);
-    check('owned: empty shows how to choose', await page.getByText('手持ちのビーズが選ばれていません', { exact: false }).isVisible());
+    check('owned: opens as a full sheet (no bead preview behind it)', await page.getByTestId('owned-grid').isVisible());
     await page.getByTestId('owned-add-8').click();
     check('owned: quick add 8', (await ownedCount()) === '手持ち 8色を選択中', await ownedCount());
     const center = async (code) => {
+      await page.getByTestId(`owned-${code}`).scrollIntoViewIfNeeded();
       const bb = await page.getByTestId(`owned-${code}`).boundingBox();
       return [bb.x + bb.width / 2, bb.y + bb.height / 2];
     };
-    await page.mouse.click(...(await center('80-15269K'))); // レモン（64色にだけある）
+    const tapChip = async (code) => {
+      await page.mouse.click(...(await center(code)));
+      await page.waitForTimeout(150);
+    };
+    const label = await page.getByTestId('owned-5005').textContent();
+    check('owned: chip shows the color name before the code', label === 'あか5005', label);
+    await tapChip('80-15269K'); // レモン（64色にだけある）
     check('owned: tap adds a 64-color bead', (await ownedCount()) === '手持ち 9色を選択中', await ownedCount());
-    // なぞる：赤の段の左から3つ（5079・フラミンゴ・さんごいろ）
-    const [ax, ay] = await center('5079');
-    const [bx] = await center('5063');
+    // 横になぞる：33〜36番（パステルきいろ・さんごいろ・つつじいろ・ラズベリー）が同じ段に並ぶ
+    await center('5056');
+    const [ax, ay] = await center('5056');
+    const [bx] = await center('5088');
     await page.mouse.move(ax, ay);
     await page.mouse.down();
-    await page.mouse.move(bx, ay, { steps: 8 });
+    await page.mouse.move(bx, ay, { steps: 12 });
     await page.mouse.up();
-    check('owned: drag selects every bead crossed', (await ownedCount()) === '手持ち 12色を選択中', await ownedCount());
-    await page.mouse.click(...(await center('80-15269K')));
-    check('owned: tap again removes', (await ownedCount()) === '手持ち 11色を選択中', await ownedCount());
-    await page.getByTestId('owned-search').fill('5005');
-    const op = await page.getByTestId('owned-5001').evaluate((el) => getComputedStyle(el).opacity);
+    await page.waitForTimeout(300);
+    check('owned: horizontal drag selects every bead crossed', (await ownedCount()) === '手持ち 13色を選択中', await ownedCount());
+    await tapChip('80-15269K');
+    check('owned: tap again removes', (await ownedCount()) === '手持ち 12色を選択中', await ownedCount());
+    await page.getByTestId('owned-search').fill('あか');
+    const op = await page.getByTestId('owned-5001').evaluate((el) => getComputedStyle(el.firstElementChild).opacity);
     check('owned: search dims other beads', Number(op) < 0.5, op);
     await page.getByTestId('owned-search').fill('');
-    await page.getByTestId('owned-add-recommended').waitFor();
     await page.waitForFunction(() => !document.querySelector('[data-testid="owned-add-recommended"]')?.textContent?.includes('（0）'), null, { timeout: 20000 });
     check('owned: recommended colors are computed', true);
     await page.getByTestId('bead-set-close').click();
-    check('owned: the more button shows the owned count', ((await page.getByTestId('beads-more').textContent()) ?? '').includes('手持ち11'), await page.getByTestId('beads-more').textContent());
+    await page.waitForTimeout(500);
+    check('owned: the more button shows the owned count', ((await page.getByTestId('beads-more').textContent()) ?? '').includes('手持ち12'), await page.getByTestId('beads-more').textContent());
     await page.waitForFunction(() => /使用 \d+色/.test(document.querySelector('[data-testid="convert-stats"]')?.textContent ?? ''), null, { timeout: 30000 });
     check('owned: preview uses the owned beads', true);
     await page.waitForTimeout(800);
     await page.reload();
     await page.getByTestId('beads-more').click();
     await page.getByTestId('bead-set-owned').click();
-    check('owned: remembered after reload (shared by all works)', (await ownedCount()) === '手持ち 11色を選択中', await ownedCount());
+    check('owned: remembered after reload (shared by all works)', (await ownedCount()) === '手持ち 12色を選択中', await ownedCount());
     await page.getByTestId('bead-set-8').click();
     check('owned: 8 colors set', (await page.getByTestId('bead-set-count').textContent()) === '8色');
   } catch (e) {

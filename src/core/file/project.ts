@@ -89,9 +89,11 @@ export function parseProject(json: string): Project {
   return project;
 }
 
-/** 古い作品の変換設定を今の形にする（使うビーズの組み合わせを足し、なくした「色数の上限」を消す）。 */
-function upgradeConvert(c: ConvertSettings & { maxColors?: unknown }): ConvertSettings {
-  const { maxColors: _dropped, ...rest } = c;
-  void _dropped;
+/** 古い作品の変換設定を今の形にする（使うビーズの組み合わせを足し、なくした設定を消す）。 */
+function upgradeConvert(c: ConvertSettings & { maxColors?: unknown; dither?: unknown }): ConvertSettings {
+  // なくした設定（色数の上限・ディザリング）は捨てる
+  const { maxColors: _max, dither: _dither, ...rest } = c;
+  void _max;
+  void _dither;
   return rest.beadSet ? rest : { ...rest, beadSet: setOfBeads(rest.allowedBeads ?? []) };
 }

@@ -1,4 +1,4 @@
-import { ALL32, ALL64, BASIC8, BASIC16, beadByIndex, beadsForSet, FAMILIES, PALETTE, PERLER32, setOfBeads } from './perler';
+import { ALL32, ALL64, BASIC8, BASIC16, beadByIndex, beadsForSet, PALETTE, PERLER32, setOfBeads } from './perler';
 
 test('PERLER32 has indices 1..32 unique and codes unique', () => {
   expect(PERLER32.map((b) => b.index)).toEqual(Array.from({ length: 32 }, (_, i) => i + 1));
@@ -28,12 +28,6 @@ describe('64 colors', () => {
     expect(new Set(PALETTE.map((b) => b.code)).size).toBe(64);
     expect(PALETTE.slice(0, 32)).toEqual(PERLER32);
     expect(ALL64).toHaveLength(64);
-  });
-
-  test('every bead belongs to a family, families are listed in display order', () => {
-    const counted = FAMILIES.map((f) => PALETTE.filter((b) => b.family === f.id).length);
-    expect(counted.reduce((a, b) => a + b, 0)).toBe(64);
-    expect(counted.every((n) => n > 0)).toBe(true);
   });
 
   test('official names (5033 is ピーチ) and codes of the added colors', () => {

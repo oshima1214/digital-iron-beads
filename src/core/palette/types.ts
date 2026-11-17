@@ -3,9 +3,6 @@ import type { Rgb } from '../color/oklab';
 /** perler-32 は 64色にする前の作品。番号 1〜32 は同じ色なので、そのまま読める。 */
 export type PaletteId = 'perler-32' | 'perler-64';
 
-/** 色の系統（手持ちを選ぶ画面の並び） */
-export type BeadFamily = 'mono' | 'red' | 'yellow' | 'brown' | 'green' | 'blue' | 'purple';
-
 export interface Bead {
   /** 1..64。0 は背景のため使わない。 */
   index: number;
@@ -15,7 +12,6 @@ export interface Bead {
   rgb: Rgb;
   /** basic = 元のアプリの基本16色、extended = 追加の16色、more = 手持ち用に足した32色 */
   group: 'basic' | 'extended' | 'more';
-  family: BeadFamily;
 }
 
 /**
