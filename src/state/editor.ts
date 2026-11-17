@@ -32,6 +32,8 @@ export interface EditorState {
   melted: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** 操作しても何も変わらなかった理由（画面に一言出す）。次の操作で消える */
+  notice: 'same-color' | null;
   open(id: string): Promise<void>;
   setTool(t: Tool): void;
   setColor(i: number): void;
@@ -136,6 +138,7 @@ export function createEditorStore(
       melted: false,
       canUndo: false,
       canRedo: false,
+      notice: null,
 
       async open(id) {
         await saver.flush();
@@ -168,10 +171,10 @@ export function createEditorStore(
 
       setTool(t) {
         stepRange({ type: 'cancel' });
-        set({ tool: t, ...(t === 'select' ? {} : { selection: new Set<number>() }) });
+        set({ tool: t, notice: null, ...(t === 'select' ? {} : { selection: new Set<number>() }) });
       },
       setColor(i) {
-        set({ color: i });
+        set({ color: i, notice: null });
       },
 
       strokeBegin(c) {
@@ -196,7 +199,10 @@ export function createEditorStore(
       bucket(c) {
         const p = get().project;
         if (!p || !c) return;
-        commit(floodFill(p.sheet, c[0], c[1], get().color));
+        const changes = floodFill(p.sheet, c[0], c[1], get().color);
+        // 同じ色の場所をタップしても何も変わらない：黙っていると「動かない」と感じるので理由を出す
+        set({ notice: changes.length === 0 ? 'same-color' : null });
+        commit(changes);
       },
 
       tapSelect(c) {

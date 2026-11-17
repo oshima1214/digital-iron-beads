@@ -16,7 +16,7 @@ describe('phone (zoom enabled)', () => {
     tr.start(1, P(10, 10), 0);
     expect(tr.tick(50)).toEqual([]);
     expect(tr.tick(100)).toEqual([{ type: 'begin', p: P(10, 10) }]);
-    expect(tr.move([{ id: 1, p: P(20, 10) }], 120)).toEqual([{ type: 'move', p: P(20, 10) }]);
+    expect(tr.move([{ id: 1, p: P(30, 10) }], 120)).toEqual([{ type: 'move', p: P(30, 10) }]);
     expect(tr.end(200)).toEqual([{ type: 'end' }]);
   });
 
@@ -65,5 +65,25 @@ describe('tablet / web (no zoom)', () => {
     expect(tr.move([{ id: 2, p: P(210, 200) }], 20)).toEqual([{ type: 'end' }]);
     expect(tr.move([{ id: 2, p: P(220, 200) }], 30)).toEqual([]);
     expect(tr.end(40)).toEqual([]);
+  });
+});
+
+describe('tap tolerance (bucket, select)', () => {
+  test('phone: a tap that slides a little (within 12px) is still a tap', () => {
+    const tr = createTouchTracker(true);
+    tr.start(1, P(10, 10), 0);
+    tr.move([{ id: 1, p: P(19, 10) }], 40); // 9px：なぞり開始（6px 超え）だが、タップの範囲内
+    expect(tr.end(120).map((a) => a.type)).toEqual(['end', 'tap']);
+  });
+
+  test('tablet: a tap that slides a little is still a tap; a real drag is not', () => {
+    const tr = createTouchTracker(false);
+    tr.start(1, P(10, 10), 0);
+    tr.move([{ id: 1, p: P(18, 14) }], 40);
+    expect(tr.end(100).at(-1)).toEqual({ type: 'tap', p: P(10, 10) });
+    tr.start(1, P(10, 10), 0);
+    tr.move([{ id: 1, p: P(40, 10) }], 40);
+    tr.move([{ id: 1, p: P(12, 10) }], 80); // 戻ってきても、一度大きく動いたらタップではない
+    expect(tr.end(120).map((a) => a.type)).toEqual(['end']);
   });
 });

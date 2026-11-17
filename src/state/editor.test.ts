@@ -247,3 +247,18 @@ test('pen and eraser use their own brush size', async () => {
   store.getState().undo();
   expect(cellsOf(store).cells.filter((v) => v === RED)).toHaveLength(0);
 });
+
+test('bucket on a region that already has the color leaves a notice instead of silently doing nothing', async () => {
+  const { store } = await setup((c) => c.fill(RED));
+  const st = () => store.getState();
+  st().setTool('bucket');
+  st().setColor(RED);
+  st().bucket([3, 3]);
+  expect(st().notice).toBe('same-color');
+  expect(st().canUndo).toBe(false);
+  st().setColor(YELLOW);
+  expect(st().notice).toBeNull();
+  st().bucket([3, 3]);
+  expect(st().notice).toBeNull();
+  expect(at(store, 0, 0)).toBe(YELLOW);
+});
