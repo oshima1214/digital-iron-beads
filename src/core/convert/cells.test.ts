@@ -1,4 +1,4 @@
-import { PERLER32, ALL32 } from '../palette/perler32';
+import { PERLER32, ALL32 } from '../palette/perler';
 import { assignCells } from './cells';
 import { lineMask } from './lines';
 import { drawRect, solid } from './testing';

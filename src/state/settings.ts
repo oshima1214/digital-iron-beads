@@ -1,5 +1,7 @@
 import { createStore, useStore } from 'zustand';
 
+import { beadsForSet } from '@/core/palette/perler';
+
 export interface AppSettings {
   /** 実寸表示の補正係数 0.90..1.10 */
   calibration: number;
@@ -11,6 +13,8 @@ export interface AppSettings {
   penSize: number;
   /** 消しゴムの太さ（マス）1..7 */
   eraserSize: number;
+  /** 手持ちのビーズ（番号、昇順）。すべての作品で共通。最初は空 */
+  ownedBeads: number[];
 }
 
 export const BRUSH_MIN = 1;
@@ -18,7 +22,7 @@ export const BRUSH_MAX = 7;
 export type BrushTool = 'pen' | 'eraser';
 const clampBrush = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(BRUSH_MAX, Math.max(BRUSH_MIN, Math.round(v))) : 1);
 
-export const DEFAULT_SETTINGS: AppSettings = { calibration: 1, calibrated: false, panelSide: 'right', penSize: 1, eraserSize: 1 };
+export const DEFAULT_SETTINGS: AppSettings = { calibration: 1, calibrated: false, panelSide: 'right', penSize: 1, eraserSize: 1, ownedBeads: [] };
 export const CALIBRATION_MIN = 0.9;
 export const CALIBRATION_MAX = 1.1;
 
@@ -41,6 +45,7 @@ export function parseSettings(json: string): AppSettings {
       panelSide: o.panelSide ?? 'right',
       penSize: clampBrush(o.penSize),
       eraserSize: clampBrush(o.eraserSize),
+      ownedBeads: Array.isArray(o.ownedBeads) ? beadsForSet('owned', o.ownedBeads as number[]) : [],
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -54,6 +59,7 @@ export interface SettingsState {
   setCalibration(v: number): Promise<void>;
   setPanelSide(side: AppSettings['panelSide']): Promise<void>;
   setBrushSize(tool: BrushTool, size: number): Promise<void>;
+  setOwnedBeads(beads: readonly number[]): Promise<void>;
   reset(): Promise<void>;
 }
 
@@ -82,7 +88,9 @@ export function createSettingsStore(repo: SettingsRepo) {
       setCalibration: (v) => save({ ...get().settings, calibration: clampCal(v), calibrated: true }),
       setPanelSide: (side) => save({ ...get().settings, panelSide: side }),
       setBrushSize: (tool, size) => save({ ...get().settings, [tool === 'pen' ? 'penSize' : 'eraserSize']: clampBrush(size) }),
-      reset: () => save({ ...DEFAULT_SETTINGS }),
+      setOwnedBeads: (beads) => save({ ...get().settings, ownedBeads: beadsForSet('owned', beads) }),
+      // 手持ちのビーズは、選び直すのが手間なので初期化しない
+      reset: () => save({ ...DEFAULT_SETTINGS, ownedBeads: get().settings.ownedBeads }),
     };
   });
 }

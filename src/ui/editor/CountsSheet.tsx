@@ -1,7 +1,7 @@
 import { FlatList, Modal, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { beadByIndex } from '@/core/palette/perler32';
+import { beadByIndex } from '@/core/palette/perler';
 import type { BeadCount } from '@/core/sheet/counts';
 
 import { NavBar } from '../NavBar';

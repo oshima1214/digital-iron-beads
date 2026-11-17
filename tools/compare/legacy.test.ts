@@ -1,4 +1,4 @@
-import { PERLER32 } from '../../src/core/palette/perler32';
+import { PERLER32 } from '../../src/core/palette/perler';
 import { drawRect, solid } from '../../src/core/convert/testing';
 import { legacyConvert } from './legacy';
 

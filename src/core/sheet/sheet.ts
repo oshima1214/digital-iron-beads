@@ -12,7 +12,7 @@ export interface Sheet {
 }
 
 export function createSheet(width: number, height: number): Sheet {
-  return { width, height, cells: new Uint8Array(width * height), paletteId: 'perler-32' };
+  return { width, height, cells: new Uint8Array(width * height), paletteId: 'perler-64' };
 }
 
 export function idx(sheet: Sheet, x: number, y: number): number {

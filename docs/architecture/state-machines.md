@@ -19,6 +19,9 @@
 | ナビの進み具合 | `src/core/machines/phases.ts` `navPhase` | `empty` / `placing` ⇄ `done` | 制作ナビ |
 | 編集でできる操作 | `src/core/machines/phases.ts` `editorMode` | `viewing` / `brush` / `bucket` / `select` | 編集（パネルの上の段、ツールバー） |
 | 作品の段階 | `Project.stage` と `phases.ts` `screenForStage` | `setup` →「完了」→ `edit` | ホーム（開く画面を決める） |
+| 手持ちをなぞって選ぶ | `src/core/machines/dragSelect.ts` | `idle` ──press──▶ `painting(add / remove)`（最初のビーズで向きが決まる）──release──▶ `idle` | ビーズ化の「…」→ 手持ち（`src/ui/beads/BeadSetPanel.tsx`） |
+| ビーズ化のプレビュー | `src/state/draft.ts` の `ConvertPreview` と `beadsNeeded` | `original`（元の色）/ `beads` / `no-beads`（手持ちが0色）。`beadsNeeded` が `ready` でないと「完了」の前にビーズを聞く | ビーズ化 |
+| 使うビーズ | `src/core/palette/types.ts` の `BeadSet` | `original` / `8` / `16` / `32` / `owned` | ビーズ化 |
 | タッチの解釈 | `src/ui/editor/touchTracker.ts` | `idle` / `pending` / `tool` / `pinch` / `ignore` | 編集のシート |
 | 色えらびの対象 | `convert.tsx` / `text.tsx` の `picker` | `null` / `'set'` `'dark'` `'light'` / `'fg'` `'bg'` | ビーズ化、文字から作る |
 

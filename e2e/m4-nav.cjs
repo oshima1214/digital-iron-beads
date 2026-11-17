@@ -42,7 +42,7 @@ async function noScroll(page, label) {
     await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
     await page.getByTestId('size-58').click();
     await page.waitForTimeout(1500);
-    await page.getByTestId('convert-done').click();
+    await page.getByTestId('convert-done').click(); // 元の色のまま → 「どのビーズで作りますか？」に '1'（16色）で答える
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     const id = page.url().split('/').pop().split('?')[0];
     check('58 sheet created and editor opened', id.length > 5, id);
@@ -83,7 +83,7 @@ async function noScroll(page, label) {
     await page.goBack();
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     const statsBefore = await page.getByTestId('editor-stats').textContent();
-    await page.getByTestId('color-5005').click(); // 図案にない色で塗って、必ず保存が起きるようにする
+    await page.getByTestId('color-5038').click(); // 図案にない色（マゼンタ。16色で作った図案には入らない）で塗って、必ず保存が起きるようにする
     const eb = await page.getByTestId('editor-canvas').boundingBox();
     await page.mouse.click(eb.x + eb.width / 2, eb.y + eb.height / 2);
     await page.waitForTimeout(300);

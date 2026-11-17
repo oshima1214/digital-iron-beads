@@ -1,6 +1,6 @@
 import { srgbToOklab } from '../color/oklab';
 import { nearestToOklab } from '../palette/nearest';
-import { beadByIndex } from '../palette/perler32';
+import { beadByIndex } from '../palette/perler';
 import { mapCellMeans } from './twoColor';
 import type { RgbaImage } from './types';
 

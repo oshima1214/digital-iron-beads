@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { loadStatus } from '@/core/machines/loadStatus';
 import { navPhase } from '@/core/machines/phases';
-import { beadByIndex } from '@/core/palette/perler32';
+import { beadByIndex } from '@/core/palette/perler';
 import { mirrorPlateIndex } from '@/core/sheet/plates';
 import { navStore, useNav } from '@/state/nav';
 import { Button } from '@/ui/Button';

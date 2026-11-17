@@ -1,5 +1,5 @@
 import { createProject } from '@/core/file/project';
-import { PERLER32 } from '@/core/palette/perler32';
+import { PERLER32 } from '@/core/palette/perler';
 import { createSheet, idx } from '@/core/sheet/sheet';
 import { createMemoryRepo } from '@/platform/memoryRepo';
 

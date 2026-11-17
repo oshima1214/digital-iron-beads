@@ -1,6 +1,6 @@
-import { PERLER32 } from '../palette/perler32';
+import { PALETTE, PERLER32 } from '../palette/perler';
 import { countBeads } from '../sheet/counts';
-import { convertImage } from './convert';
+import { convertImage, originalCells, recommendBeads } from './convert';
 import { drawRect, noiseImage, solid } from './testing';
 import { defaultConvertSettings } from './types';
 
@@ -25,15 +25,6 @@ test('convertImage: area outside the fitted image is background', () => {
   const sh = convertImage(solid(200, 100, [221, 8, 8, 255]), s); // 29x14
   expect(sh.cells[0]).toBe(b('5005'));
   expect(sh.cells[20 * 29]).toBe(0);
-});
-
-test('convertImage: respects maxColors', () => {
-  const img = solid(80, 80, [221, 8, 8, 255]);
-  drawRect(img, 20, 0, 20, 80, [43, 63, 135, 255]);
-  drawRect(img, 40, 0, 20, 80, [53, 150, 63, 255]);
-  drawRect(img, 60, 0, 20, 80, [255, 242, 0, 255]);
-  const sh = convertImage(img, { ...defaultConvertSettings(13), maxColors: 2, removeBackground: false });
-  expect(countBeads(sh).length).toBeLessThanOrEqual(2);
 });
 
 test('convertImage: removes plain background around an object', () => {
@@ -95,4 +86,24 @@ test('convertImage: subject filling the whole frame is not erased (default setti
   expect(sh.cells.every((v) => v === b('5005'))).toBe(true);
   const strip = convertImage(solid(40, 3000, [221, 8, 8, 255]), defaultConvertSettings(116));
   expect(countBeads(strip).length).toBe(1);
+});
+
+test('originalCells keeps the image colors per cell; background cells are transparent', () => {
+  const img = solid(80, 80, [255, 255, 255, 255]);
+  drawRect(img, 20, 20, 40, 40, [10, 200, 130, 255]);
+  const o = originalCells(img, defaultConvertSettings(13));
+  expect([o.width, o.height]).toEqual([13, 13]);
+  const px = (x: number, y: number) => [...o.data.subarray((y * 13 + x) * 4, (y * 13 + x) * 4 + 4)];
+  expect(px(6, 6)).toEqual([10, 200, 130, 255]); // ビーズの色（5010 など）に変えない
+  expect(px(0, 0)[3]).toBe(0);
+});
+
+test('recommendBeads lists the 64-color beads the image would use, most used first', () => {
+  const img = solid(80, 80, [255, 255, 255, 255]);
+  drawRect(img, 0, 0, 60, 80, [239, 207, 1, 255]); // レモン（64色にだけある）
+  drawRect(img, 60, 0, 20, 80, [0, 0, 0, 255]);
+  const r = recommendBeads(img, { ...defaultConvertSettings(13), removeBackground: false });
+  const codes = r.map((i) => PALETTE[i - 1].code);
+  expect(codes[0]).toBe('80-15269K');
+  expect(codes).toContain('5018');
 });

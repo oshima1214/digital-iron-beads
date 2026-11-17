@@ -1,6 +1,6 @@
 import { type Oklab, oklabDist2, srgbToOklab } from '../color/oklab';
 import { buildNearestLut, nearestIndex, type NearestLut } from '../palette/nearest';
-import { beadByIndex } from '../palette/perler32';
+import { beadByIndex, PALETTE } from '../palette/perler';
 import type { RgbaImage } from './types';
 
 /** 途切れ補修: 線ピクセルがこの割合（lineThreshold に対する比）以上あるマスを補修の候補にする。 */
@@ -25,7 +25,7 @@ function modeBead(data: Uint8ClampedArray, pixels: readonly number[], lut: Neare
   const mean = srgbToOklab(r / n, g / n, b / n);
   let best = 0;
   let bestVotes = 0;
-  for (let k = 1; k <= 32; k++) {
+  for (let k = 1; k <= PALETTE.length; k++) {
     if (votes[k] === 0) continue;
     if (votes[k] > bestVotes || (votes[k] === bestVotes && oklabDist2(mean, beadLab(k)) < oklabDist2(mean, beadLab(best)))) {
       best = k;
@@ -69,7 +69,7 @@ export function assignCells(
   const lineFrac = new Float32Array(n);
   const { width: w, data } = work;
   const area = cellPx * cellPx;
-  const votes = new Uint16Array(33);
+  const votes = new Uint16Array(PALETTE.length + 1);
 
   for (let cy = 0; cy < cellsH; cy++) {
     for (let cx = 0; cx < cellsW; cx++) {

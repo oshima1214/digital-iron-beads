@@ -6,7 +6,7 @@ import type { RgbaImage } from '../../src/core/convert/types';
 import { resizeArea } from '../../src/core/image/adjust';
 
 export { resizeArea };
-import { BASIC16, ALL32, beadByIndex } from '../../src/core/palette/perler32';
+import { BASIC16, ALL32, beadByIndex } from '../../src/core/palette/perler';
 import { createSheet, type Sheet, type SheetSize } from '../../src/core/sheet/sheet';
 
 const CANVAS = 930;

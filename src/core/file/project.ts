@@ -1,4 +1,5 @@
 import type { ConvertSettings } from '../convert/types';
+import { PALETTE, setOfBeads } from '../palette/perler';
 import type { CropRect } from '../image/adjust';
 import { createSheet, type Sheet, type SheetSize } from '../sheet/sheet';
 import { base64ToBytes, bytesToBase64 } from './base64';
@@ -76,11 +77,21 @@ export function parseProject(json: string): Project {
   if (!s || typeof s !== 'object') fail('sheet is missing');
   const { width, height } = s;
   if (typeof width !== 'number' || !SIZES.includes(width) || width !== height) fail('unsupported sheet size');
-  if (s.paletteId !== 'perler-32') fail('unsupported palette');
+  // perler-32（64色にする前）の作品も、番号 1〜32 が同じ色なのでそのまま読む
+  if (s.paletteId !== 'perler-64' && s.paletteId !== 'perler-32') fail('unsupported palette');
   const cells = typeof s.cells === 'string' ? base64ToBytes(s.cells) : null;
   if (!cells || cells.length !== width * width) fail('cells length mismatch');
-  if (cells.some((v) => v > 32)) fail('cell value out of range');
+  if (cells.some((v) => v > PALETTE.length)) fail('cell value out of range');
   const sheet = createSheet(width as SheetSize, width as SheetSize);
   sheet.cells.set(cells);
-  return { ...(o as unknown as Project), sheet };
+  const project: Project = { ...(o as unknown as Project), sheet };
+  if (project.source) project.source = { ...project.source, convert: upgradeConvert(project.source.convert) };
+  return project;
+}
+
+/** 古い作品の変換設定を今の形にする（使うビーズの組み合わせを足し、なくした「色数の上限」を消す）。 */
+function upgradeConvert(c: ConvertSettings & { maxColors?: unknown }): ConvertSettings {
+  const { maxColors: _dropped, ...rest } = c;
+  void _dropped;
+  return rest.beadSet ? rest : { ...rest, beadSet: setOfBeads(rest.allowedBeads ?? []) };
 }

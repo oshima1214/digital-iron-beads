@@ -24,14 +24,14 @@ test('parse broken json → defaults', () => {
 });
 
 test('calibration clamped to 0.90..1.10', () => {
-  expect(parseSettings('{"calibration":2,"calibrated":true,"panelSide":"left"}')).toEqual({ calibration: 1.1, calibrated: true, panelSide: 'left', penSize: 1, eraserSize: 1 });
+  expect(parseSettings('{"calibration":2,"calibrated":true,"panelSide":"left"}')).toEqual({ calibration: 1.1, calibrated: true, panelSide: 'left', penSize: 1, eraserSize: 1, ownedBeads: [] });
   expect(parseSettings('{"calibration":0.5}').calibration).toBe(0.9);
 });
 
 test('load reads the repo; missing file → defaults', async () => {
   const s = createSettingsStore(memRepo('{"calibration":1.02,"calibrated":true,"panelSide":"left"}'));
   await s.getState().load();
-  expect(s.getState().settings).toEqual({ calibration: 1.02, calibrated: true, panelSide: 'left', penSize: 1, eraserSize: 1 });
+  expect(s.getState().settings).toEqual({ calibration: 1.02, calibrated: true, panelSide: 'left', penSize: 1, eraserSize: 1, ownedBeads: [] });
   const empty = createSettingsStore(memRepo(null));
   await empty.getState().load();
   expect(empty.getState().settings).toEqual(DEFAULT_SETTINGS);
@@ -43,7 +43,7 @@ test('setCalibration persists and marks calibrated', async () => {
   const s = createSettingsStore(repo);
   await s.getState().setCalibration(1.004);
   expect(s.getState().settings.calibrated).toBe(true);
-  expect(JSON.parse(repo.data()!)).toEqual({ calibration: 1.004, calibrated: true, panelSide: 'right', penSize: 1, eraserSize: 1 });
+  expect(JSON.parse(repo.data()!)).toEqual({ calibration: 1.004, calibrated: true, panelSide: 'right', penSize: 1, eraserSize: 1, ownedBeads: [] });
   await s.getState().reset();
   expect(s.getState().settings).toEqual(DEFAULT_SETTINGS);
 });
@@ -69,4 +69,16 @@ test('brush sizes default to 1, are clamped to 1..7, and are saved', async () =>
   await store.getState().setBrushSize('eraser', 5);
   expect(store.getState().settings.eraserSize).toBe(5);
   expect(JSON.parse(saved).eraserSize).toBe(5);
+});
+
+test('owned beads: default none, cleaned on load, saved', async () => {
+  expect(DEFAULT_SETTINGS.ownedBeads).toEqual([]);
+  expect(parseSettings('{"ownedBeads":[5,5,70,0,"x",40,1.5]}').ownedBeads).toEqual([5, 40]);
+  expect(parseSettings('{"ownedBeads":"all"}').ownedBeads).toEqual([]);
+  let saved = '';
+  const store = createSettingsStore({ read: async () => null, write: async (j) => void (saved = j) });
+  await store.getState().load();
+  await store.getState().setOwnedBeads([3, 1, 3]);
+  expect(store.getState().settings.ownedBeads).toEqual([1, 3]);
+  expect(JSON.parse(saved).ownedBeads).toEqual([1, 3]);
 });

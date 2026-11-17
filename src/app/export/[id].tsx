@@ -8,7 +8,7 @@ import { countsText } from '@/core/export/countsText';
 import { base64ToBytes } from '@/core/file/base64';
 import { packBeads } from '@/core/file/beads';
 import type { Project } from '@/core/file/project';
-import { beadByIndex } from '@/core/palette/perler32';
+import { beadByIndex } from '@/core/palette/perler';
 import { countBeads } from '@/core/sheet/counts';
 import { printPdf, shareBeads, sharePdf, sharePng, shareText } from '@/platform/exporter';
 import { projectRepo } from '@/platform/projectRepo';

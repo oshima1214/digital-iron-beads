@@ -1,5 +1,5 @@
 import { type Oklab, oklabDist2, srgbToOklab } from '../color/oklab';
-import { beadByIndex } from './perler32';
+import { beadByIndex } from './perler';
 
 /** sRGB を各チャンネル5ビットに量子化したキー → ビーズ番号。長さ 32768。 */
 export type NearestLut = Uint8Array;

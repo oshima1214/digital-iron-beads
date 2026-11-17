@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
-import { PERLER32 } from '@/core/palette/perler32';
+import { PALETTE } from '@/core/palette/perler';
 import { countBeads } from '@/core/sheet/counts';
 import { editorStore, useEditor } from '@/state/editor';
 
@@ -15,9 +15,9 @@ export function PaletteBar() {
   const project = useEditor((s) => s.project);
   const committed = useEditor((s) => s.committed);
   const order = useMemo(() => {
-    if (!project) return PERLER32;
+    if (!project) return PALETTE;
     const used = countBeads(project.sheet).map((c) => c.index);
-    return [...used.map((i) => PERLER32[i - 1]), ...PERLER32.filter((b) => !used.includes(b.index))];
+    return [...used.map((i) => PALETTE[i - 1]), ...PALETTE.filter((b) => !used.includes(b.index))];
     // committed は編集の確定を知らせるため（ストロークの途中では並べ替えない）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, committed]);

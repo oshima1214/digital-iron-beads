@@ -1,18 +1,18 @@
 import { srgbToOklab } from '../color/oklab';
-import { PERLER32 } from '../palette/perler32';
+import { PALETTE } from '../palette/perler';
 
 /** 孤立マスでも、多数派との明るさの差 (OKLab ΔL) がこれ以上なら残す（瞳のハイライトなど）。 */
 export const HIGHLIGHT_DL = 0.5;
 
-const BEAD_L = new Float32Array(33);
-for (const b of PERLER32) BEAD_L[b.index] = srgbToOklab(...b.rgb)[0];
+const BEAD_L = new Float32Array(PALETTE.length + 1);
+for (const b of PALETTE) BEAD_L[b.index] = srgbToOklab(...b.rgb)[0];
 
 /**
  * 上下左右に同じ値がない孤立マスを、周り8マスの多数派（背景 0 を含む）に置き換える。
  * strength 回くり返す。protect=1 のマスと、多数派のビーズとの明るさの差が HIGHLIGHT_DL 以上のマスは対象外。
  */
 export function denoise(cells: Uint8Array, w: number, h: number, strength: 0 | 1 | 2, protect: Uint8Array | null): void {
-  const votes = new Uint8Array(33);
+  const votes = new Uint8Array(PALETTE.length + 1);
   for (let pass = 0; pass < strength; pass++) {
     const src = cells.slice();
     for (let y = 0; y < h; y++) {
@@ -41,7 +41,7 @@ export function denoise(cells: Uint8Array, w: number, h: number, strength: 0 | 1
         if (!any) continue;
         let best = v;
         let bestN = 0;
-        for (let k = 0; k <= 32; k++) {
+        for (let k = 0; k <= PALETTE.length; k++) {
           if (votes[k] > bestN) {
             best = k;
             bestN = votes[k];

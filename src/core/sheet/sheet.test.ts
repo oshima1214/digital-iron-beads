@@ -1,10 +1,10 @@
 import { cloneSheet, createSheet, getCell, idx, inBounds } from './sheet';
 
-test('createSheet is empty perler-32', () => {
+test('createSheet is empty perler-64', () => {
   const s = createSheet(3, 2);
   expect(s.cells).toHaveLength(6);
   expect(s.cells.every((v) => v === 0)).toBe(true);
-  expect(s.paletteId).toBe('perler-32');
+  expect(s.paletteId).toBe('perler-64');
 });
 
 test('getCell out of bounds is 0, idx is row-major', () => {
