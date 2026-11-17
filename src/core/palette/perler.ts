@@ -1,5 +1,5 @@
 import type { Rgb } from '../color/oklab';
-import type { Bead, BeadFamily, BeadSet } from './types';
+import type { Bead, BeadSet } from './types';
 
 // 色は株式会社カワダ「パーラービーズ」の単色。品番・色名は公式カラーリスト
 // （https://www.kawada-toys.com/brand/perlerbeads/colorlist/ 、2026年11月に確認）による。
@@ -82,29 +82,8 @@ const MORE: [string, string, Rgb][] = [
   ['80-15181', 'ライトグレー', [224, 224, 224]],
 ];
 
-/** 色の系統と、手持ちを選ぶ画面で並べる順 */
-export const FAMILIES: readonly { id: BeadFamily; label: string; codes: readonly string[] }[] = [
-  { id: 'mono', label: '白黒', codes: ['5001', '5019', '80-15181', '5017', '5092', '5018'] },
-  {
-    id: 'red',
-    label: '赤',
-    codes: ['5079', '80-15203K', '5063', '80-15204K', '5006', '80-15242K', '5083', '5038', '5088', '80-15244K', '5005', '80-15211K', '5059', '80-19096K'],
-  },
-  { id: 'yellow', label: '黄', codes: ['5002', '5056', '5033', '5098', '5035', '80-15269K', '5003', '5057', '5004', '80-15246K', '5090'] },
-  { id: 'brown', label: '茶', codes: ['80-15239K', '5021', '5020', '5012', '80-15262K'] },
-  { id: 'green', label: '緑', codes: ['5097', '5061', '5053', '80-15240', '80-15254K', '5080', '5010', '5011', '80-15220K', '5091', '80-15179K'] },
-  { id: 'blue', label: '青', codes: ['5052', '5058', '80-15202K', '5009', '5062', '5089', '80-15253K', '5008', '80-15236'] },
-  { id: 'purple', label: '紫', codes: ['80-15182K', '5054', '5093', '5070', '80-15210K', '5007', '5060', '80-15248K'] },
-];
-
-const familyOf = (code: string): BeadFamily => {
-  const f = FAMILIES.find((x) => x.codes.includes(code));
-  if (!f) throw new Error(`no family for bead ${code}`);
-  return f.id;
-};
-
 const make = (list: [string, string, Rgb][], start: number, group: Bead['group']) =>
-  list.map(([code, name, rgb], i): Bead => ({ index: start + i, code, name, rgb, group, family: familyOf(code) }));
+  list.map(([code, name, rgb], i): Bead => ({ index: start + i, code, name, rgb, group }));
 
 /** 全64色。番号 = 配列の位置 + 1 */
 export const PALETTE: readonly Bead[] = [...make(BASIC, 1, 'basic'), ...make(EXTENDED, 17, 'extended'), ...make(MORE, 33, 'more')];

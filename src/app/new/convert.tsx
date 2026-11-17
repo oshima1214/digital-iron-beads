@@ -13,7 +13,7 @@ import { beadsNeeded, draftStore, useDraft } from '@/state/draft';
 import { settingsStore, useSettings } from '@/state/settings';
 import { useDraftFor } from '@/state/useDraftFor';
 import { BeadOnePicker } from '@/ui/BeadPicker';
-import { BeadSetPanel } from '@/ui/beads/BeadSetPanel';
+import { BeadSetSheet } from '@/ui/beads/BeadSetSheet';
 import { ConvertPreviewCanvas } from '@/ui/ConvertPreviewCanvas';
 import { LabeledSlider } from '@/ui/LabeledSlider';
 import { notify, showMenu } from '@/ui/dialogs';
@@ -53,7 +53,7 @@ export default function Convert() {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [converting, setConverting] = useState(false);
   const [picker, setPicker] = useState<null | 'dark' | 'light'>(null);
-  // 「…」で開く使うビーズのパネル（開いている間は、設定の欄の代わりに出す）
+  // 「…」で下から出る、使うビーズの画面
   const [beadPanel, setBeadPanel] = useState(false);
   const [recommended, setRecommended] = useState<number[] | null>(null);
   const owned = useSettings((s) => s.settings.ownedBeads);
@@ -156,8 +156,9 @@ export default function Convert() {
             ? '元の色で表示中（ビーズの色ではありません）'
             : ' '}
       </Text>
-      {settings && beadPanel && (
-        <BeadSetPanel
+      {settings && (
+        <BeadSetSheet
+          visible={beadPanel}
           beadSet={settings.beadSet}
           owned={owned}
           recommended={recommended}
@@ -166,7 +167,7 @@ export default function Convert() {
           onClose={closeBeadPanel}
         />
       )}
-      {settings && !beadPanel && (
+      {settings && (
         <View style={styles.panel}>
           <SettingRow label="サイズ">
             <Segmented testID="size" options={SIZES} value={settings.size} onChange={(v) => set({ size: v })} />
@@ -224,11 +225,6 @@ export default function Convert() {
           <SettingRow label="ノイズ掃除">
             <Segmented options={NOISE} value={settings.noise} onChange={(v) => set({ noise: v })} />
           </SettingRow>
-          {settings.preset === 'photo' && (
-            <SettingRow label="ディザリング">
-              <Switch value={settings.dither} onValueChange={(v) => set({ dither: v })} />
-            </SettingRow>
-          )}
           <SettingRow label="背景を自動で除く" last>
             <Switch testID="remove-bg" value={settings.removeBackground} onValueChange={(v) => set({ removeBackground: v })} />
           </SettingRow>

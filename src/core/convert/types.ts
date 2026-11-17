@@ -20,7 +20,6 @@ export interface ConvertSettings {
   /** OKLab ΔE */
   backgroundTolerance: number;
   lineThreshold: number;
-  dither: boolean;
   twoColor?: { dark: number; light: number; threshold: number };
 }
 
@@ -36,6 +35,5 @@ export function defaultConvertSettings(size: SheetSize = 29): ConvertSettings {
     removeBackground: true,
     backgroundTolerance: 0.08,
     lineThreshold: 0.15,
-    dither: false,
   };
 }

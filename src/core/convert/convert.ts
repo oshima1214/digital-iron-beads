@@ -5,7 +5,6 @@ import { createSheet, type Sheet } from '../sheet/sheet';
 import { backgroundMask } from './background';
 import { assignCells } from './cells';
 import { denoise } from './denoise';
-import { ditherCells } from './dither';
 import { lineMask } from './lines';
 import { fitToWork } from './resample';
 import { twoColorCells } from './twoColor';
@@ -23,8 +22,6 @@ export function convertImage(img: RgbaImage, s: ConvertSettings, cellPx = WORK_C
     const tc = s.twoColor;
     if (!tc) throw new Error('twoColor settings are required for the twoColor preset');
     cells = twoColorCells(work, cellsW, cellsH, cellPx, bg, tc.dark, tc.light, tc.threshold);
-  } else if (s.preset === 'photo' && s.dither) {
-    cells = ditherCells(work, cellsW, cellsH, cellPx, bg, s.allowedBeads);
   } else {
     const lines = s.preset === 'illust' ? lineMask(work, bg, lab, cellPx) : null;
     const r = assignCells(work, cellsW, cellsH, cellPx, bg, lines, s.allowedBeads, s.lineThreshold);
@@ -83,6 +80,6 @@ export function originalCells(img: RgbaImage, s: ConvertSettings, cellPx = WORK_
 
 /** 64色すべてで変換したときに使われる色（多い順）。手持ちを選ぶ画面の「この画像に合う色」。 */
 export function recommendBeads(img: RgbaImage, s: ConvertSettings, cellPx = 2): number[] {
-  const all = convertImage(img, { ...s, preset: s.preset === 'twoColor' ? 'illust' : s.preset, dither: false, beadSet: 'owned', allowedBeads: [...ALL64] }, cellPx);
+  const all = convertImage(img, { ...s, preset: s.preset === 'twoColor' ? 'illust' : s.preset, beadSet: 'owned', allowedBeads: [...ALL64] }, cellPx);
   return countBeads(all).map((c) => c.index);
 }

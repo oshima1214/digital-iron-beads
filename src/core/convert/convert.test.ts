@@ -50,18 +50,9 @@ test('convertImage: twoColor preset uses only dark/light', () => {
   expect(sh.cells[12]).toBe(b('5003'));
 });
 
-test('convertImage: photo + dither mixes black and white for mid gray', () => {
-  const s = {
-    ...defaultConvertSettings(13),
-    preset: 'photo' as const,
-    dither: true,
-    noise: 0 as const,
-    removeBackground: false,
-    allowedBeads: [b('5001'), b('5018')],
-  };
-  const counts = countBeads(convertImage(solid(52, 52, [99, 99, 99, 255]), s));
-  expect(counts).toHaveLength(2);
-  expect(Math.min(...counts.map((c) => c.count))).toBeGreaterThan(30);
+test('convertImage: photo picks the nearest single bead per cell (no dithering)', () => {
+  const s = { ...defaultConvertSettings(13), preset: 'photo' as const, beadSet: '32' as const, noise: 0 as const, removeBackground: false, allowedBeads: [b('5001'), b('5018')] };
+  expect(countBeads(convertImage(solid(52, 52, [40, 40, 40, 255]), s)).map((c) => c.index)).toEqual([b('5018')]);
 });
 
 test('convertImage 116 performance', () => {
