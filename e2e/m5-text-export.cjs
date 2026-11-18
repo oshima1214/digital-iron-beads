@@ -134,7 +134,7 @@ async function noScroll(page, label) {
     await page.getByTestId('plate-1').click();
     const title = await page.getByTestId('nav-title').textContent();
     check('mirrored: visual plate 1 is titled 1/4', /プレート 1\/4/.test(title), title);
-    check('mirrored: visual plate 1 shows the right-top plate bead', /5005 あか ・ 1粒/.test(await page.getByTestId('nav-current').textContent()), await page.getByTestId('nav-current').textContent());
+    check('mirrored: visual plate 1 shows the right-top plate bead (name first, code in parentheses)', /あか（5005） ・ 1粒/.test(await page.getByTestId('nav-current').textContent()), await page.getByTestId('nav-current').textContent());
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: path.join(__dirname, 'failure-m5.png') });
