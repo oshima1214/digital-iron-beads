@@ -99,9 +99,15 @@ export default function Nav() {
                 {colorIndex + 1} / {order.length} 色め
               </Text>
               {current && (
-                <Text style={styles.big} testID="nav-current" numberOfLines={1}>
-                  <Text style={{ color: rgb(current.index) }}>●</Text> {beadByIndex(current.index).code} {beadByIndex(current.index).name} ・ {current.count}粒
-                </Text>
+                // 色の名前を大きく1行で、品番と粒数はその下に小さく（長い名前でも切れないように）
+                <View testID="nav-current">
+                  <Text style={styles.big} numberOfLines={1}>
+                    <Text style={{ color: rgb(current.index) }}>●</Text> {beadByIndex(current.index).name}
+                  </Text>
+                  <Text style={styles.small} numberOfLines={1}>
+                    （{beadByIndex(current.index).code}） ・ {current.count}粒
+                  </Text>
+                </View>
               )}
             </View>
             <Button title="次へ ▶" onPress={() => st().next()} testID="nav-next" style={styles.step} />
@@ -121,7 +127,8 @@ export default function Nav() {
                 style={[styles.chip, index === colorIndex && styles.chipOn]}>
                 <Text style={{ color: rgb(item.index), fontSize: 14 }}>●</Text>
                 <Text style={styles.chipText}>
-                  {beadByIndex(item.index).code} {item.count}
+                  {beadByIndex(item.index).name}
+                  <Text style={styles.chipCode}>（{beadByIndex(item.index).code}）</Text> {item.count}
                 </Text>
               </Pressable>
             )}
@@ -157,9 +164,12 @@ export default function Nav() {
           ? 'ビーズなし'
           : phase === 'done'
             ? '完成！'
-            : current
-              ? `${colorIndex + 1}/${order.length} ${beadByIndex(current.index).code} ${beadByIndex(current.index).name} ${current.count}粒`
-              : ''}
+            : current && (
+                <>
+                  {colorIndex + 1}/{order.length} {beadByIndex(current.index).name}
+                  <Text style={styles.code}>（{beadByIndex(current.index).code}）</Text> {current.count}粒
+                </>
+              )}
       </Text>
       <Button title="▶" onPress={() => st().next()} testID="nav-next" style={styles.mini} />
       {fit?.fits === 'half' && (
@@ -241,5 +251,8 @@ const styles = StyleSheet.create({
   chip: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.bg },
   chipOn: { backgroundColor: '#E5F0FF' },
   chipText: { fontFamily: fonts.regular, fontSize: 12, color: colors.text },
+  // 品番は色の名前のうしろに小さく（色の名前のほうをよく見るので）
+  code: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext },
+  chipCode: { fontFamily: fonts.regular, fontSize: 10, color: colors.subtext },
   stage: { flex: 1, marginBottom: 8 },
 });
