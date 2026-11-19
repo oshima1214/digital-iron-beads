@@ -25,7 +25,7 @@ export function editorMode(tool: 'pen' | 'eraser' | 'bucket' | 'select', melted:
 
 /**
  * 作品の段階（Project.stage）と開く画面。
- *   setup（ビーズ化の途中）──「完了」──▶ edit（編集できる）
+ *   setup（ビーズシート作成の途中）──「編集」──▶ edit（編集できる）──メニュー「ビーズシートを作り直す」──▶ ビーズシート作成（edit のまま。「編集」でシートを置き換える）
  */
 export function screenForStage(stage: 'setup' | 'edit'): '/new/convert' | '/project/[id]' {
   return stage === 'setup' ? '/new/convert' : '/project/[id]';

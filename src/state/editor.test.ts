@@ -262,3 +262,13 @@ test('bucket on a region that already has the color leaves a notice instead of s
   expect(st().notice).toBeNull();
   expect(at(store, 0, 0)).toBe(YELLOW);
 });
+
+test('setName renames the open work (trimmed, autosaved); blank is ignored', async () => {
+  const { repo, store, id } = await setup();
+  store.getState().setName('  ねこ ');
+  expect(store.getState().project?.name).toBe('ねこ');
+  store.getState().setName('  ');
+  expect(store.getState().project?.name).toBe('ねこ');
+  await jest.advanceTimersByTimeAsync(600);
+  expect((await repo.load(id)).name).toBe('ねこ');
+});

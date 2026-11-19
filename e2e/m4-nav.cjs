@@ -38,6 +38,7 @@ async function noScroll(page, label) {
     const chooser = page.waitForEvent('filechooser');
     await page.getByTestId('source-photo').click();
     await (await chooser).setFiles(FACE);
+    await page.getByTestId('prepare-name').fill('ナビの作品');
     await page.getByTestId('prepare-next').click();
     await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
     await page.getByTestId('size-58').click();
@@ -152,6 +153,21 @@ async function noScroll(page, label) {
     check('iPad editor: tools above the plate', tb.y < cb.y, `${tb.y} < ${cb.y}`);
     check('iPad editor: minimap shown for 58', (await page.getByTestId('plate-4').count()) === 1);
     await noScroll(page, 'editor @iPad');
+
+    // 最後のプレートの最後の色まで置いたら「ホームへ」
+    await page.goto(`${BASE}/project/${id}`);
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    await page.getByTestId('to-nav').click();
+    await page.getByTestId('nav-current').waitFor({ timeout: 30000 });
+    await page.getByTestId('plate-4').click();
+    for (let k = 0; k < 40 && (await page.getByTestId('nav-home').count()) === 0; k++) {
+      if ((await page.getByTestId('nav-next').count()) === 0) break;
+      await page.getByTestId('nav-next').click();
+    }
+    check('all done on the last plate shows "home"', /すべて完成/.test(await current()) && (await page.getByTestId('nav-home').count()) === 1, await current());
+    await page.getByTestId('nav-home').click();
+    await page.getByTestId('new-project').waitFor({ timeout: 30000 });
+    check('"home" goes to the home screen', true);
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: path.join(__dirname, 'failure-m4.png') });

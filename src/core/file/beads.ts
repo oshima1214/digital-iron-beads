@@ -1,4 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import type { RgbaImage } from '../convert/types';
+import { cropImage } from '../image/adjust';
 
 import { BEADS_MIME } from '../appIdentity';
 import { FORMAT_VERSION, newProjectId, parseProject, type Project, serializeProject } from './project';
@@ -55,4 +57,16 @@ export function unpackBeads(bytes: Uint8Array, now: Date): { project: Project; s
     project.stage = 'edit';
   }
   return { project, sourcePng: project.source ? sourcePng : null };
+}
+
+/**
+ * 書き出す .beads には、切り抜いた後の画像だけを入れる（切り抜いた外側の写真を人に渡さない）。
+ * 切り抜き枠は画像に焼き込んで消す。明るさ・コントラストなどの設定はそのまま残す。元の作品は変えない。
+ */
+export function bakeCrop(p: Project, image: RgbaImage): { project: Project; image: RgbaImage } {
+  const crop = p.source?.crop;
+  if (!p.source || !crop) return { project: p, image };
+  const source = { ...p.source };
+  delete source.crop;
+  return { project: { ...p, source }, image: cropImage(image, crop) };
 }

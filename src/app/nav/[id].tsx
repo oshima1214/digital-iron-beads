@@ -45,6 +45,12 @@ export default function Nav() {
   };
 
   const status = loadStatus({ wanted: id, loaded: project?.id, error: !!error });
+  // すべて置き終わったら：進み具合を保存してホームへ
+  const goHome = async () => {
+    await navStore().getState().flush();
+    router.dismissTo('/');
+  };
+
   const ready = project?.id === id;
   const phase = navPhase(order.length, done);
   // 反転中は見た目の位置で番号を数える（シート全体を反転）
@@ -87,7 +93,11 @@ export default function Nav() {
           </Text>
           <View style={styles.row}>
             <Button title="◀ 前へ" variant="secondary" onPress={() => st().prev()} testID="nav-prev" style={{ flex: 1 }} />
-            {!last && <Button title="次のプレートへ" onPress={() => st().setPlate(toData(visualIndex + 1))} testID="nav-next-plate" style={{ flex: 1 }} />}
+            {last ? (
+              <Button title="ホームへ" onPress={() => void goHome()} testID="nav-home" style={{ flex: 1 }} />
+            ) : (
+              <Button title="次のプレートへ" onPress={() => st().setPlate(toData(visualIndex + 1))} testID="nav-next-plate" style={{ flex: 1 }} />
+            )}
           </View>
         </View>
       ) : (
@@ -99,13 +109,13 @@ export default function Nav() {
                 {colorIndex + 1} / {order.length} 色め
               </Text>
               {current && (
-                // 色の名前を大きく1行で、品番と粒数はその下に小さく（長い名前でも切れないように）
+                // 色の名前を大きく1行で、品番と数はその下に小さく（長い名前でも切れないように）
                 <View testID="nav-current">
                   <Text style={styles.big} numberOfLines={1}>
                     <Text style={{ color: rgb(current.index) }}>●</Text> {beadByIndex(current.index).name}
                   </Text>
                   <Text style={styles.small} numberOfLines={1}>
-                    （{beadByIndex(current.index).code}） ・ {current.count}粒
+                    （{beadByIndex(current.index).code}） ・ {current.count}ビーズ
                   </Text>
                 </View>
               )}
@@ -167,11 +177,15 @@ export default function Nav() {
             : current && (
                 <>
                   {colorIndex + 1}/{order.length} {beadByIndex(current.index).name}
-                  <Text style={styles.code}>（{beadByIndex(current.index).code}）</Text> {current.count}粒
+                  <Text style={styles.code}>（{beadByIndex(current.index).code}）</Text> {current.count}ビーズ
                 </>
               )}
       </Text>
-      <Button title="▶" onPress={() => st().next()} testID="nav-next" style={styles.mini} />
+      {phase === 'done' && last ? (
+        <Button title="ホームへ" onPress={() => void goHome()} testID="nav-home" style={styles.mini} />
+      ) : (
+        <Button title="▶" onPress={() => st().next()} testID="nav-next" style={styles.mini} />
+      )}
       {fit?.fits === 'half' && (
         <Segmented<0 | 1>
           testID="nav-half"

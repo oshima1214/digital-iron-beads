@@ -37,6 +37,8 @@ export interface EditorState {
   open(id: string): Promise<void>;
   setTool(t: Tool): void;
   setColor(i: number): void;
+  /** 作品名を変える（前後の空白を除く。空なら変えない）。書き出し画面から使う */
+  setName(name: string): void;
   /** null = シートの外 */
   strokeBegin(c: Cell | null): void;
   strokeMove(c: Cell | null): void;
@@ -172,6 +174,14 @@ export function createEditorStore(
       setTool(t) {
         stepRange({ type: 'cancel' });
         set({ tool: t, notice: null, ...(t === 'select' ? {} : { selection: new Set<number>() }) });
+      },
+      setName(name) {
+        const p = get().project;
+        const n = name.trim();
+        if (!p || !n || n === p.name) return;
+        const next = { ...p, name: n, updatedAt: now().toISOString() };
+        set({ project: next });
+        saver.schedule(next);
       },
       setColor(i) {
         set({ color: i, notice: null });

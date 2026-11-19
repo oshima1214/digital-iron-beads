@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { countBeads } from '@/core/sheet/counts';
 import { mirrorPlateIndex, platesOf } from '@/core/sheet/plates';
 import { editorStore, useEditor } from '@/state/editor';
-import { showMenu } from '@/ui/dialogs';
+import { confirmDestructive, showMenu } from '@/ui/dialogs';
+import { draftStore } from '@/state/draft';
 import { CountsSheet } from '@/ui/editor/CountsSheet';
 import { EditorCanvas } from '@/ui/editor/EditorCanvas';
 import { loadStatus } from '@/core/machines/loadStatus';
@@ -58,14 +59,28 @@ export default function Editor() {
   const total = counts.reduce((a, c) => a + c.count, 0);
   const st = () => editorStore().getState();
 
+  // 元の写真がある作品（写真から作った・写真入りの .beads を読み込んだ）は、ビーズシート作成に戻って作り直せる
+  const canRemake = !!project?.source;
   const viewMenu = async () => {
-    const i = await showMenu('表示', [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ', '書き出し・共有']);
+    const items = [`左右反転 ${mirror ? 'オフ' : 'オン'}`, `完成イメージ ${melted ? 'オフ' : 'オン'}`, '必要なビーズ', '書き出し・共有'];
+    const i = await showMenu('メニュー', canRemake ? [...items, 'ビーズシートを作り直す'] : items);
     if (i === 0) st().toggleMirror();
     else if (i === 1) st().toggleMelted();
     else if (i === 2) setShowCounts(true);
     else if (i === 3) {
       await st().flush(); // 最新の編集を保存してから書き出す
       router.push({ pathname: '/export/[id]', params: { id } });
+    } else if (i === 4) {
+      const ok = await confirmDestructive(
+        'ビーズシートを作り直しますか？',
+        'サイズや使うビーズを変えて作り直せます。作り直すと、編集で直したところは消えます（作り直さずに戻れば、今のままです）。',
+        '作り直す',
+      );
+      if (!ok) return;
+      await st().flush();
+      // 作成画面は、前に作ったときの作品を覚えていることがある（名前などが古い）。保存したものを読み直してから開く
+      await draftStore().getState().open(id);
+      router.push({ pathname: '/new/convert', params: { id } });
     }
   };
 
@@ -100,7 +115,7 @@ export default function Editor() {
           <Text style={[styles.icon, !canRedo && styles.off]}>↷</Text>
         </Pressable>
         <Pressable accessibilityRole="button" testID="view-menu" onPress={() => void viewMenu()} hitSlop={6} style={styles.hit}>
-          <Text style={styles.link}>表示</Text>
+          <Text style={styles.link}>メニュー</Text>
         </Pressable>
         <Pressable accessibilityRole="button" testID="to-nav" disabled={!ready} onPress={() => void toNav()} hitSlop={6} style={styles.hit}>
           <Text style={styles.link}>ナビ</Text>
@@ -110,7 +125,7 @@ export default function Editor() {
   );
   const stats = (
     <Text style={styles.stats} testID="editor-stats" numberOfLines={1}>
-      {ready ? `${counts.length}色 ・ ${total}粒${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${mode === 'select' && rangePhase === 'anchored' ? ' ・ 範囲：もう一方の角をタップ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${(mirror ? mirrorPlateIndex(plates, plate.index) : plate.index) + 1}/${plates.length}` : ''}` : ' '}
+      {ready ? `${counts.length}色 ・ ${total}ビーズ${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${mode === 'select' && rangePhase === 'anchored' ? ' ・ 範囲：もう一方の角をタップ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${(mirror ? mirrorPlateIndex(plates, plate.index) : plate.index) + 1}/${plates.length}` : ''}` : ' '}
     </Text>
   );
   const tools = (

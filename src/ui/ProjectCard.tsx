@@ -30,7 +30,7 @@ export function ProjectCard({ item, size, onPress, onLongPress }: Props) {
         <SheetThumb sheet={item.sheet} size={size} />
       </View>
       <Text style={styles.name} numberOfLines={1}>
-        {item.name}
+        {item.name || '名前なし'}
       </Text>
       <Text style={styles.meta}>
         {shortDate(item.updatedAt)}

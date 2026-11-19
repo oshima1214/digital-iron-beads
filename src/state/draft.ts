@@ -21,7 +21,7 @@ export interface ImageIO {
  */
 export type ConvertPreview = { kind: 'original'; image: RgbaImage } | { kind: 'beads'; sheet: Sheet } | { kind: 'no-beads' };
 
-/** 「元の色」のまま、または手持ちが0色のまま「完了」しようとした（どのビーズで作るかを先に決める）。 */
+/** 「元の色」のまま、または手持ちが0色のまま「編集」に進もうとした（どのビーズで作るかを先に決める）。 */
 export class NeedsBeadsError extends Error {
   constructor() {
     super('choose beads before finishing');
@@ -49,7 +49,7 @@ export interface DraftState {
   error: 'open-failed' | null;
   startFromImage(img: RgbaImage, name: string): Promise<string>;
   open(id: string): Promise<void>;
-  /** 作品名を変える（前後の空白は除く。空なら変えない）。 */
+  /** 作品名を変える（前後の空白は除く）。空にもできる（写真から作るときは、空のままでは「シート作成」に進めない） */
   setName(name: string): void;
   setCrop(rect: CropRect | undefined): void;
   setAdjust(brightness: number, contrast: number): void;
@@ -114,7 +114,7 @@ export function createDraftStore(repo: ProjectRepo, io: ImageIO, now: () => Date
 
       setName(name) {
         const trimmed = name.trim();
-        if (!trimmed || trimmed === get().project?.name) return;
+        if (trimmed === get().project?.name) return;
         update((p) => ({ ...p, name: trimmed }));
       },
       setCrop(rect) {
