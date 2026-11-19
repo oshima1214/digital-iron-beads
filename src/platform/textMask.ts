@@ -1,29 +1,16 @@
 // iOS: Skia で BIZ UDPゴシック Bold を使い、オフスクリーンで文字の形を描く。
-import { BIZUDPGothic_700Bold } from '@expo-google-fonts/biz-udpgothic';
-import { ColorType, AlphaType, type SkTypeface, Skia } from '@shopify/react-native-skia';
-import { Asset } from 'expo-asset';
+import { AlphaType, ColorType, Skia } from '@shopify/react-native-skia';
 
 import type { TextLayout } from '@/core/text/layout';
 
+import { loadTypeface } from './skiaFonts';
+
 export const GLYPH_SCALE = 0.88;
-let typeface: SkTypeface | null = null;
-
-async function loadTypeface(): Promise<SkTypeface> {
-  if (typeface) return typeface;
-  const asset = Asset.fromModule(BIZUDPGothic_700Bold);
-  await asset.downloadAsync();
-  const data = await Skia.Data.fromURI(asset.localUri ?? asset.uri);
-  const tf = Skia.Typeface.MakeFreeTypeFaceFromData(data);
-  if (!tf) throw new Error('font could not be loaded');
-  typeface = tf;
-  return tf;
-}
-
 /** 各文字を、その文字の幅の箱の中央に描いた不透明度（0..255、行優先）。 */
 export async function renderTextMask(text: string, layout: TextLayout, cellPx: number): Promise<{ mask: Uint8Array; w: number; h: number }> {
   const w = layout.totalW * cellPx;
   const h = layout.charH * cellPx;
-  const font = Skia.Font(await loadTypeface(), layout.charH * cellPx * GLYPH_SCALE);
+  const font = Skia.Font(await loadTypeface('bold'), layout.charH * cellPx * GLYPH_SCALE);
   const surface = Skia.Surface.Make(w, h);
   if (!surface) throw new Error('surface could not be created');
   const canvas = surface.getCanvas();

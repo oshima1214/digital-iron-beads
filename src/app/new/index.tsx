@@ -40,7 +40,8 @@ export default function NewSource() {
       const uri = fromFiles ? await pickImageFile() : await pickLibraryPhoto();
       if (!uri) return;
       const img = await loadRgba(uri);
-      const id = await draftStore().getState().startFromImage(img, defaultName());
+      // 写真から作るときは、作品名を「画像切り出し」で自分で決める（最初は空）
+      const id = await draftStore().getState().startFromImage(img, '');
       router.replace({ pathname: '/new/prepare', params: { id } });
     } catch (e) {
       console.warn(e);

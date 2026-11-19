@@ -78,7 +78,7 @@ export default function NewText() {
     }
   };
 
-  const label = (i: number) => (i === 0 ? 'なし' : `${beadByIndex(i).code} ${beadByIndex(i).name}`);
+  const label = (i: number) => (i === 0 ? 'なし' : `${beadByIndex(i).name}（${beadByIndex(i).code}）`);
   const canCreate = layout.fits && !!sheet && !busy;
 
   return (

@@ -1,24 +1,26 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { buildPrintHtml } from '@/core/export/print';
-import { countsText } from '@/core/export/countsText';
 import { base64ToBytes } from '@/core/file/base64';
-import { packBeads } from '@/core/file/beads';
+import { bakeCrop, packBeads } from '@/core/file/beads';
 import type { Project } from '@/core/file/project';
 import { beadByIndex } from '@/core/palette/perler';
 import { countBeads } from '@/core/sheet/counts';
-import { printPdf, shareBeads, sharePdf, sharePng, shareText } from '@/platform/exporter';
+import { printPdf, shareBeads, sharePdf, sharePng } from '@/platform/exporter';
+import { encodePng, loadRgba } from '@/platform/pixels';
 import { projectRepo } from '@/platform/projectRepo';
+import { editorStore } from '@/state/editor';
+import { projectsStore } from '@/state/projects';
 import { Button } from '@/ui/Button';
 import { notify } from '@/ui/dialogs';
 import { NavBar } from '@/ui/NavBar';
 import { OpenError } from '@/ui/OpenError';
 import { colors, fonts } from '@/ui/theme';
 
-/** 元画像のバイト列（.beads に入れる）。読めなければ null。 */
+/** 元画像のバイト列。読めなければ null。 */
 async function readSource(p: Project): Promise<Uint8Array | null> {
   if (!p.source) return null;
   try {
@@ -31,13 +33,25 @@ async function readSource(p: Project): Promise<Uint8Array | null> {
   }
 }
 
-/** ⑥ 書き出し */
+/** .beads の中身：切り抜いた後の画像だけを入れる（切り抜き枠は画像に焼き込む）。元画像が読めなければ図案だけ。 */
+async function beadsBytes(p: Project): Promise<Uint8Array> {
+  if (!p.source) return packBeads(p, null);
+  const png = await readSource(p);
+  if (!png) return packBeads(p, null);
+  if (!p.source.crop) return packBeads(p, png);
+  const img = await loadRgba(projectRepo.sourceUri(p.id, p.source.image));
+  const baked = bakeCrop(p, img);
+  return packBeads(baked.project, await encodePng(baked.image));
+}
+
+/** ⑥ 書き出し・共有 */
 export default function Export() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // 読み込みの状態（loading → ready / error）。作品は ready のときだけある
   const [load, setLoad] = useState<{ status: 'loading' } | { status: 'ready'; project: Project } | { status: 'error' }>({ status: 'loading' });
-  const project = load.status === 'ready' ? load.project : null;
-  const [mirror, setMirror] = useState(false);
+  const loaded = load.status === 'ready' ? load.project : null;
+  // 書き出すときの作品名（この画面で変えられる）。日本語入力を壊さないよう、入力欄は value で縛らない
+  const [name, setName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -47,10 +61,25 @@ export default function Export() {
       .catch(() => setLoad({ status: 'error' }));
   }, [id]);
 
-  const run = async (f: () => Promise<void>) => {
+  const project = loaded ? { ...loaded, name: name?.trim() || loaded.name } : null;
+
+  /** 作品名を保存する（編集画面が作品を持っていれば、そちらを通して保存。持っていなければ直接） */
+  const saveName = async () => {
+    const n = name?.trim();
+    if (!loaded || !n || n === loaded.name) return;
+    const ed = editorStore().getState();
+    if (ed.project?.id === id) {
+      ed.setName(n);
+      await ed.flush();
+    } else await projectsStore().getState().rename(id, n);
+  };
+
+  const run = async (f: (p: Project) => Promise<void>) => {
+    if (!project) return;
     setBusy(true);
     try {
-      await f();
+      await saveName();
+      await f(project);
     } catch (e) {
       console.warn(e);
       notify('書き出せませんでした', 'もう一度お試しください。');
@@ -63,36 +92,55 @@ export default function Export() {
   const total = counts.reduce((a, c) => a + c.count, 0);
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <NavBar title="書き出し・共有" left={{ title: '‹ 戻る', onPress: () => router.back() }} />
+      <NavBar
+        title="書き出し・共有"
+        left={{
+          title: '‹ 戻る',
+          onPress: () => {
+            void saveName().finally(() => router.back());
+          },
+        }}
+      />
       {load.status === 'error' ? (
         <OpenError />
-      ) : !project ? (
+      ) : !project || !loaded ? (
         <ActivityIndicator style={{ flex: 1 }} />
       ) : (
         <>
           <View style={styles.panel}>
-            <Text style={styles.name} numberOfLines={1}>
-              {project.name}
-            </Text>
-            <Button title="画像（PNG）で共有" disabled={busy} testID="export-png" onPress={() => void run(() => sharePng(project.sheet, project.name, mirror))} />
-            <View style={styles.row}>
-              <Text style={styles.small}>左右反転して書き出す（画像のみ）</Text>
-              <Switch value={mirror} onValueChange={setMirror} />
+            <View style={styles.nameRow}>
+              <Text style={styles.nameLabel} numberOfLines={1}>
+                作品名
+              </Text>
+              <TextInput
+                testID="export-name"
+                defaultValue={loaded.name}
+                onChangeText={setName}
+                onEndEditing={() => void saveName()}
+                placeholder={loaded.name}
+                maxLength={40}
+                clearButtonMode="while-editing"
+                returnKeyType="done"
+                autoCorrect={false}
+                style={styles.nameInput}
+                accessibilityLabel="作品名"
+              />
             </View>
-            <Button title="型紙を印刷（実寸）" variant="secondary" disabled={busy} testID="export-print" onPress={() => void run(() => printPdf(buildPrintHtml(project.sheet, project.name)))} />
-            <Button title="型紙を PDF で共有" variant="secondary" disabled={busy} testID="export-pdf" onPress={() => void run(() => sharePdf(buildPrintHtml(project.sheet, project.name), project.name))} />
+            <Text style={styles.small}>書き出すファイルの名前にもなります。</Text>
+            <Button title="画像（PNG）で共有（必要なビーズ付き）" variant="secondary" disabled={busy} testID="export-png" onPress={() => void run((p) => sharePng(p.sheet, p.name))} />
+            <Button title="型紙を印刷（実寸）" variant="secondary" disabled={busy} testID="export-print" onPress={() => void run((p) => printPdf(buildPrintHtml(p.sheet, p.name)))} />
+            <Button title="型紙を PDF で共有" variant="secondary" disabled={busy} testID="export-pdf" onPress={() => void run((p) => sharePdf(buildPrintHtml(p.sheet, p.name), p.name))} />
             <Button
-              title=".beads ファイルで共有（ほかの端末に渡す）"
+              title=".beads で共有（ほかの端末に渡す）"
               variant="secondary"
               disabled={busy}
               testID="export-beads"
-              onPress={() => void run(async () => shareBeads(packBeads(project, await readSource(project)), project.name))}
+              onPress={() => void run(async (p) => shareBeads(await beadsBytes(p), p.name))}
             />
-            <Button title="必要なビーズをテキストで共有" variant="secondary" disabled={busy} testID="export-text" onPress={() => void run(() => shareText(countsText(project.name, project.sheet)))} />
             <Text style={styles.small}>印刷するときは倍率を「100%（実際のサイズ）」にしてください。1マス＝5mm です。</Text>
           </View>
           <Text style={styles.heading}>
-            必要なビーズ ・ {counts.length}色 {total}粒
+            必要なビーズ ・ {counts.length}色 {total}ビーズ
           </Text>
           <FlatList
             style={styles.list}
@@ -103,10 +151,11 @@ export default function Export() {
               return (
                 <View style={styles.item}>
                   <View style={[styles.swatch, { backgroundColor: `rgb(${b.rgb.join(',')})` }]} />
-                  <Text style={styles.itemText}>
-                    {b.code} {b.name}
+                  <Text style={styles.itemText} numberOfLines={1}>
+                    {b.name}
+                    <Text style={styles.code}>（{b.code}）</Text>
                   </Text>
-                  <Text style={styles.count}>{item.count}</Text>
+                  <Text style={styles.count}>{item.count}ビーズ</Text>
                 </View>
               );
             }}
@@ -120,13 +169,15 @@ export default function Export() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
   panel: { backgroundColor: colors.panel, borderRadius: 12, padding: 12, gap: 8 },
-  name: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 10, backgroundColor: colors.bg, paddingHorizontal: 12 },
+  nameLabel: { fontFamily: fonts.regular, fontSize: 15, color: colors.subtext, flexShrink: 0 },
+  nameInput: { flex: 1, minWidth: 0, fontFamily: fonts.bold, fontSize: 17, color: colors.text, paddingVertical: 8 },
   small: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, flexShrink: 1 },
   heading: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 12, marginBottom: 4 },
   list: { flex: 1, backgroundColor: colors.panel, borderRadius: 12, marginBottom: 12 },
   item: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
   swatch: { width: 18, height: 18, borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: '#AEAEB2' },
-  itemText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.text },
+  itemText: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: colors.text },
+  code: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext },
   count: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
 });

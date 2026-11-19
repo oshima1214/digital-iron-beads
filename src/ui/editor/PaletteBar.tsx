@@ -34,7 +34,7 @@ export function PaletteBar() {
           return (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${item.code} ${item.name}`}
+              accessibilityLabel={`${item.name}（${item.code}）`}
               testID={`color-${item.code}`}
               onPress={() => editorStore().getState().setColor(item.index)}
               style={[styles.ring, on && styles.ringOn]}>

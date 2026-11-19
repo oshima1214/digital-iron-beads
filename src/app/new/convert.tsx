@@ -10,13 +10,14 @@ import type { BeadSet } from '@/core/palette/types';
 import { countBeads } from '@/core/sheet/counts';
 import type { SheetSize } from '@/core/sheet/sheet';
 import { beadsNeeded, draftStore, useDraft } from '@/state/draft';
+import { editorStore } from '@/state/editor';
 import { settingsStore, useSettings } from '@/state/settings';
 import { useDraftFor } from '@/state/useDraftFor';
 import { BeadOnePicker } from '@/ui/BeadPicker';
 import { BeadSetSheet } from '@/ui/beads/BeadSetSheet';
 import { ConvertPreviewCanvas } from '@/ui/ConvertPreviewCanvas';
 import { LabeledSlider } from '@/ui/LabeledSlider';
-import { notify, showMenu } from '@/ui/dialogs';
+import { notify, promptText, showMenu } from '@/ui/dialogs';
 import { NavBar } from '@/ui/NavBar';
 import { OpenError } from '@/ui/OpenError';
 import { Segmented } from '@/ui/Segmented';
@@ -105,8 +106,17 @@ export default function Convert() {
     run('full');
   };
 
+  /** 「編集」：シートを作って編集画面へ。編集画面から作り直しに来たときは、同じ作品のシートを置き換えて戻る */
   const done = async () => {
-    const s = draftStore().getState().project?.source?.convert;
+    const p = draftStore().getState().project;
+    if (p && !p.name.trim()) {
+      // 画像切り出しで名前を決めずに来た（途中で閉じて再開したなど）：ここで決めてもらう
+      const n = await promptText('作品名を決めてください', '');
+      if (!n?.trim()) return;
+      draftStore().getState().setName(n);
+    }
+    const remaking = p?.stage === 'edit';
+    const s = p?.source?.convert;
     if (s && beadsNeeded(s) !== 'ready') {
       // 元の色（または手持ちが0色）のままでは作品にできない：どのビーズで作るかを聞く
       const options: { label: string; set: BeadSet }[] = [
@@ -121,10 +131,15 @@ export default function Convert() {
     }
     try {
       const pid = await draftStore().getState().finish();
-      router.replace({ pathname: '/project/[id]', params: { id: pid } });
+      if (remaking) {
+        // 編集画面は前のシートを持っているので、読み直してから戻る
+        await editorStore().getState().open(pid);
+        if (router.canGoBack()) router.back();
+        else router.replace({ pathname: '/project/[id]', params: { id: pid } });
+      } else router.replace({ pathname: '/project/[id]', params: { id: pid } });
     } catch (e) {
       console.warn(e);
-      notify('保存できませんでした', '端末の空き容量を確認して、もう一度「完了」を押してください。');
+      notify('保存できませんでした', '端末の空き容量を確認して、もう一度「編集」を押してください。');
     }
   };
 
@@ -135,9 +150,9 @@ export default function Convert() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <NavBar
-        title="ビーズにする"
+        title="ビーズシート作成"
         left={{ title: '‹ 戻る', onPress: () => (router.canGoBack() ? router.back() : router.replace({ pathname: '/new/prepare', params: { id } })) }}
-        right={{ title: '完了', testID: 'convert-done', disabled: !ready || busy || !preview, onPress: () => void done() }}
+        right={{ title: '編集', testID: 'convert-done', disabled: !ready || busy || !preview, onPress: () => void done() }}
       />
       <View style={styles.preview} onLayout={(e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
         {status === 'error' ? (
@@ -151,7 +166,7 @@ export default function Convert() {
       </View>
       <Text style={styles.stats} testID="convert-stats">
         {preview?.kind === 'beads'
-          ? `使用 ${counts.length}色 ・ ${total}粒`
+          ? `使用 ${counts.length}色 ・ ${total}ビーズ`
           : preview?.kind === 'original'
             ? '元の色で表示中（ビーズの色ではありません）'
             : ' '}
@@ -183,10 +198,10 @@ export default function Convert() {
           {settings.preset === 'twoColor' ? (
             <>
               <SettingRow label="暗い色" onPress={() => setPicker('dark')}>
-                <RowValue text={`${beadByIndex(two.dark).code} ${beadByIndex(two.dark).name}`} />
+                <RowValue text={`${beadByIndex(two.dark).name}（${beadByIndex(two.dark).code}）`} />
               </SettingRow>
               <SettingRow label="明るい色" onPress={() => setPicker('light')}>
-                <RowValue text={`${beadByIndex(two.light).code} ${beadByIndex(two.light).name}`} />
+                <RowValue text={`${beadByIndex(two.light).name}（${beadByIndex(two.light).code}）`} />
               </SettingRow>
               <View style={styles.sliderRow}>
                 <LabeledSlider

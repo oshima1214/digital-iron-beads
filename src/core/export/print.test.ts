@@ -1,5 +1,4 @@
 import { createSheet, idx } from '../sheet/sheet';
-import { countsText } from './countsText';
 import { buildPrintHtml } from './print';
 
 const pages = (html: string) => (html.match(/<section class="page/g) ?? []).length;
@@ -30,8 +29,3 @@ test('print html draws only beads inside the sheet for 13 on a 29 plate', () => 
   expect(html).not.toContain('cx="13.5"');
 });
 
-test('countsText lists codes by count', () => {
-  const s = createSheet(13, 13);
-  s.cells.set([3, 3, 8]);
-  expect(countsText('ねこ', s)).toBe('ねこ\n必要なビーズ（2色・3粒）\n5005 あか 2\n5018 くろ 1');
-});

@@ -143,15 +143,15 @@ test('finish() rejects when the save fails', async () => {
   await expect(store.getState().finish()).rejects.toThrow();
 });
 
-test('setName trims, autosaves, and ignores blank names', async () => {
+test('setName trims and autosaves; it can be emptied (a name is required later, not here)', async () => {
   const { repo, store, img } = setup();
   const id = await store.getState().startFromImage(img, '作品 1');
   store.getState().setName('  ねこ  ');
   expect(store.getState().project?.name).toBe('ねこ');
-  store.getState().setName('   ');
-  expect(store.getState().project?.name).toBe('ねこ');
   await jest.advanceTimersByTimeAsync(600);
   expect((await repo.load(id)).name).toBe('ねこ');
+  store.getState().setName('   ');
+  expect(store.getState().project?.name).toBe('');
 });
 
 test('bead sets: original shows the image colors, owned with nothing chosen cannot convert', async () => {

@@ -7,7 +7,7 @@ import type { BeadCount } from '@/core/sheet/counts';
 import { NavBar } from '../NavBar';
 import { colors, fonts } from '../theme';
 
-/** 品番ごとの必要数の一覧（この一覧の中だけスクロールする）。 */
+/** 色ごとの必要数の一覧（この一覧の中だけスクロールする）。色の名前を大きく、品番はかっこで小さく */
 export function CountsSheet({ visible, counts, onClose }: { visible: boolean; counts: BeadCount[]; onClose(): void }) {
   const total = counts.reduce((a, c) => a + c.count, 0);
   return (
@@ -15,7 +15,7 @@ export function CountsSheet({ visible, counts, onClose }: { visible: boolean; co
       <SafeAreaView style={styles.root}>
         <NavBar title="必要なビーズ" right={{ title: '閉じる', testID: 'counts-close', onPress: onClose }} />
         <Text style={styles.total}>
-          {counts.length}色 ・ {total}粒
+          {counts.length}色 ・ {total}ビーズ
         </Text>
         <FlatList
           data={counts}
@@ -25,9 +25,11 @@ export function CountsSheet({ visible, counts, onClose }: { visible: boolean; co
             return (
               <View style={styles.row}>
                 <View style={[styles.swatch, { backgroundColor: `rgb(${b.rgb.join(',')})` }]} />
-                <Text style={styles.code}>{b.code}</Text>
-                <Text style={styles.name}>{b.name}</Text>
-                <Text style={styles.count}>{item.count}</Text>
+                <Text style={styles.name} numberOfLines={1}>
+                  {b.name}
+                  <Text style={styles.code}>（{b.code}）</Text>
+                </Text>
+                <Text style={styles.count}>{item.count}ビーズ</Text>
               </View>
             );
           }}
@@ -42,7 +44,7 @@ const styles = StyleSheet.create({
   total: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginVertical: 8 },
   row: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
   swatch: { width: 22, height: 22, borderRadius: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: '#AEAEB2' },
-  code: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, width: 48 },
-  name: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text },
+  code: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext },
+  name: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: colors.text },
   count: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
 });

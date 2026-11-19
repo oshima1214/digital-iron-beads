@@ -28,7 +28,7 @@ export function buildPrintHtml(sheet: Sheet, name: string): string {
       }
     }
     const legend = countBeads(sheet, plate)
-      .map((c) => `<span class="lg"><i style="background:${rgb(c.index)}"></i>${beadByIndex(c.index).code} ${esc(beadByIndex(c.index).name)} ${c.count}</span>`)
+      .map((c) => `<span class="lg"><i style="background:${rgb(c.index)}"></i><b>${esc(beadByIndex(c.index).name)}</b><small>（${beadByIndex(c.index).code}）</small> ${c.count}</span>`)
       .join('');
     const label = plates.length > 1 ? ` ・ プレート ${plate.index + 1}/${plates.length}` : '';
     return `<section class="page"><h1>${title}${label}</h1>
@@ -39,9 +39,9 @@ export function buildPrintHtml(sheet: Sheet, name: string): string {
   const counts = countBeads(sheet);
   const total = counts.reduce((a, c) => a + c.count, 0);
   const rows = counts
-    .map((c) => `<tr><td><i style="background:${rgb(c.index)}"></i></td><td>${beadByIndex(c.index).code}</td><td>${esc(beadByIndex(c.index).name)}</td><td class="n">${c.count}</td></tr>`)
+    .map((c) => `<tr><td><i style="background:${rgb(c.index)}"></i></td><td><b>${esc(beadByIndex(c.index).name)}</b><small>（${beadByIndex(c.index).code}）</small></td><td class="n">${c.count}ビーズ</td></tr>`)
     .join('');
-  pages.push(`<section class="page"><h1>${title} ・ 必要なビーズ（${counts.length}色・${total}粒）</h1><table>${rows}</table></section>`);
+  pages.push(`<section class="page"><h1>${title} ・ 必要なビーズ（${counts.length}色・${total}ビーズ）</h1><table>${rows}</table></section>`);
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${title}</title><style>
 @page { size: A4 portrait; margin: 12mm; }
 body { font-family: -apple-system, 'Hiragino Sans', sans-serif; color: #111; margin: 0; }
@@ -51,6 +51,7 @@ h1 { font-size: 14pt; margin: 0 0 6mm; }
 .note { font-size: 9pt; color: #555; margin: 4mm 0; }
 .legend { display: flex; flex-wrap: wrap; gap: 2mm 5mm; font-size: 9pt; max-width: 186mm; }
 .lg, td { white-space: nowrap; }
+small { font-size: 0.8em; color: #666; }
 i { display: inline-block; width: 3.5mm; height: 3.5mm; border-radius: 50%; border: 0.2mm solid #AEAEB2; margin-right: 1.5mm; vertical-align: -0.6mm; }
 table { border-collapse: collapse; font-size: 11pt; } td { padding: 1.5mm 4mm; border-bottom: 0.2mm solid #ddd; } .n { text-align: right; font-weight: bold; }
 </style></head><body>${pages.join('\n')}</body></html>`;

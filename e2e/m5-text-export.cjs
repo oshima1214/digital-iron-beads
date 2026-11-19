@@ -67,7 +67,7 @@ async function noScroll(page, label) {
     await page.getByTestId('text-create').click();
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     const stats = await page.getByTestId('editor-stats').textContent();
-    check('text "AB" becomes a 1-colour sheet with beads', /^1色 ・ [1-9]\d*粒/.test(stats), stats);
+    check('text "AB" becomes a 1-colour sheet with beads', /^1色 ・ [1-9]\d*ビーズ/.test(stats), stats);
 
     // 2. 書き出し：.beads と印刷
     answer = '4'; // 表示 → 書き出し・共有
@@ -124,7 +124,7 @@ async function noScroll(page, label) {
     const ox = box.x + (box.width - cell * 58) / 2;
     const oy = box.y + (box.height - cell * 58) / 2;
     await page.mouse.click(ox + (45 + 0.5) * cell, oy + (5 + 0.5) * cell); // データの (45,5) = 右上のプレート
-    check('one bead painted in the right-top plate', /1色 ・ 1粒/.test(await page.getByTestId('editor-stats').textContent()));
+    check('one bead painted in the right-top plate', /1色 ・ 1ビーズ/.test(await page.getByTestId('editor-stats').textContent()));
     await page.waitForTimeout(700);
     await page.getByTestId('to-nav').click();
     await page.getByTestId('nav-current').waitFor({ timeout: 30000 });
@@ -134,7 +134,7 @@ async function noScroll(page, label) {
     await page.getByTestId('plate-1').click();
     const title = await page.getByTestId('nav-title').textContent();
     check('mirrored: visual plate 1 is titled 1/4', /プレート 1\/4/.test(title), title);
-    check('mirrored: visual plate 1 shows the right-top plate bead (name first, code in parentheses)', /あか（5005） ・ 1粒/.test(await page.getByTestId('nav-current').textContent()), await page.getByTestId('nav-current').textContent());
+    check('mirrored: visual plate 1 shows the right-top plate bead (name first, code in parentheses)', /あか（5005） ・ 1ビーズ/.test(await page.getByTestId('nav-current').textContent()), await page.getByTestId('nav-current').textContent());
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: path.join(__dirname, 'failure-m5.png') });

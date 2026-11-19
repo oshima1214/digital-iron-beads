@@ -61,16 +61,16 @@ function check(name, ok, detail = '') {
     await page.mouse.down();
     await page.mouse.move(...(await cellPos(4, 2)), { steps: 1 }); // 1回で飛ばす → 補間されるはず
     await page.mouse.up();
-    check('pen tap + drag (interpolated)', /1色 ・ 6粒/.test(await stats()), await stats());
+    check('pen tap + drag (interpolated)', /1色 ・ 6ビーズ/.test(await stats()), await stats());
 
     await page.getByTestId('tool-bucket').click();
     await page.getByTestId('color-5003').click();
     await tap(10, 10);
-    check('bucket fills background', /2色 ・ 169粒/.test(await stats()), await stats());
+    check('bucket fills background', /2色 ・ 169ビーズ/.test(await stats()), await stats());
     await page.getByTestId('undo').click();
-    check('undo bucket', /1色 ・ 6粒/.test(await stats()), await stats());
+    check('undo bucket', /1色 ・ 6ビーズ/.test(await stats()), await stats());
     await page.getByTestId('redo').click();
-    check('redo bucket', /2色 ・ 169粒/.test(await stats()), await stats());
+    check('redo bucket', /2色 ・ 169ビーズ/.test(await stats()), await stats());
     // 同じ色の場所をタップ：何も変わらないが、理由を出す
     await tap(10, 10);
     check('bucket same color shows notice', await page.getByTestId('editor-notice').isVisible());
@@ -82,21 +82,21 @@ function check(name, ok, detail = '') {
     await page.mouse.down();
     await page.mouse.move(bx + 9, by, { steps: 3 });
     await page.mouse.up();
-    check('bucket works with a slightly sliding tap', /1色 ・ 169粒/.test(await stats()), await stats()); // 黄色の背景が赤に
+    check('bucket works with a slightly sliding tap', /1色 ・ 169ビーズ/.test(await stats()), await stats()); // 黄色の背景が赤に
     await page.getByTestId('undo').click();
-    check('undo sliding-tap bucket', /2色 ・ 169粒/.test(await stats()), await stats());
+    check('undo sliding-tap bucket', /2色 ・ 169ビーズ/.test(await stats()), await stats());
 
     await page.getByTestId('tool-select').click();
     await tap(0, 0);
     check('select one cell', (await page.getByTestId('selection-count').textContent()) === '1マス');
     await page.getByTestId('sel-delete').click();
-    check('delete selection', /2色 ・ 168粒/.test(await stats()), await stats());
+    check('delete selection', /2色 ・ 168ビーズ/.test(await stats()), await stats());
 
     await page.getByTestId('color-5018').click();
     answer = '1'; // 太さ 1
     await page.getByTestId('tool-outline').click();
     await page.waitForTimeout(200);
-    check('outline fills the deleted border cell', /3色 ・ 169粒/.test(await stats()), await stats());
+    check('outline fills the deleted border cell', /3色 ・ 169ビーズ/.test(await stats()), await stats());
 
     answer = '1'; // 左右反転 オン
     await page.getByTestId('view-menu').click();
@@ -145,18 +145,18 @@ function check(name, ok, detail = '') {
     check('brush: slider sets pen to 3', (await brushValue()) === '3マス', await brushValue());
     await page.getByTestId('color-5005').click();
     await tap(6, 6);
-    check('brush: 3 paints 3×3', /1色 ・ 9粒/.test(await stats()), await stats());
+    check('brush: 3 paints 3×3', /1色 ・ 9ビーズ/.test(await stats()), await stats());
     await tap(0, 0);
-    check('brush: clipped at the corner (+4)', /1色 ・ 13粒/.test(await stats()), await stats());
+    check('brush: clipped at the corner (+4)', /1色 ・ 13ビーズ/.test(await stats()), await stats());
     await page.getByTestId('undo').click();
-    check('brush: one undo per tap', /1色 ・ 9粒/.test(await stats()), await stats());
+    check('brush: one undo per tap', /1色 ・ 9ビーズ/.test(await stats()), await stats());
     await page.getByTestId('tool-eraser').click();
     check('brush: eraser keeps its own size', (await brushValue()) === '1マス', await brushValue());
     await tap(6, 6);
-    check('brush: eraser 1 removes one bead', /1色 ・ 8粒/.test(await stats()), await stats());
+    check('brush: eraser 1 removes one bead', /1色 ・ 8ビーズ/.test(await stats()), await stats());
     await setBrush(7);
     await tap(6, 6);
-    check('brush: eraser 7 clears the rest', /0色 ・ 0粒/.test(await stats()), await stats());
+    check('brush: eraser 7 clears the rest', /0色 ・ 0ビーズ/.test(await stats()), await stats());
     await noScroll('editor with brush slider');
     await page.waitForTimeout(800);
     await page.reload();

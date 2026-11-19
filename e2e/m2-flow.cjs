@@ -33,12 +33,18 @@ async function noScroll(page, label) {
 let menuAnswer = '1';
 const alerts = [];
 
+/** 画像切り出し：作品名を入れて「シート作成」 */
+async function nameAndNext(page, name) {
+  await page.getByTestId('prepare-name').fill(name);
+  await page.getByTestId('prepare-next').click();
+}
+
 async function createFromPhoto(page, file = FACE) {
   await page.getByTestId('new-project').click();
   const chooser = page.waitForEvent('filechooser');
   await page.getByTestId('source-photo').click();
   await (await chooser).setFiles(file);
-  await page.getByText('下ごしらえ').waitFor({ timeout: 20000 });
+  await page.getByText('画像切り出し').waitFor({ timeout: 20000 });
 }
 
 (async () => {
@@ -63,7 +69,13 @@ async function createFromPhoto(page, file = FACE) {
     check('photo → prepare', true);
     await noScroll(page, 'prepare');
 
+    // 作品名を決めないと「シート作成」に進めない
+    check('crop: the name starts empty', (await page.getByTestId('prepare-name').inputValue()) === '');
     await page.getByTestId('prepare-next').click();
+    await page.waitForTimeout(400);
+    check('crop: without a name it asks for one', alerts.some((m) => m.includes('作品名を決めてください')), alerts.join(' | '));
+    check('crop: and stays on the crop screen', await page.getByText('画像切り出し').isVisible());
+    await nameAndNext(page, '作品A');
     await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
     check('convert preview rendered', true);
     await noScroll(page, 'convert');
@@ -73,7 +85,7 @@ async function createFromPhoto(page, file = FACE) {
     await page.getByTestId('bead-main-32').click();
     await page.waitForFunction(() => /使用 \d+色/.test(document.querySelector('[data-testid="convert-stats"]')?.textContent ?? ''), null, { timeout: 30000 });
     const stats = await page.getByTestId('convert-stats').textContent();
-    check('convert stats shown after size 13 with 32 colors', /使用 \d+色 ・ \d+粒/.test(stats ?? ''), stats ?? '');
+    check('convert stats shown after size 13 with 32 colors', /使用 \d+色 ・ \d+ビーズ/.test(stats ?? ''), stats ?? '');
     check('no color-limit slider anymore', (await page.getByTestId('max-colors').count()) === 0);
 
     // 元の色のまま「完了」→ どのビーズで作るかを聞く（2 = 32色）
@@ -82,7 +94,7 @@ async function createFromPhoto(page, file = FACE) {
     menuAnswer = '2';
     await page.getByTestId('convert-done').click();
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
-    await page.waitForFunction(() => /\d+色 ・ \d+粒/.test(document.querySelector('[data-testid="editor-stats"]')?.textContent ?? ''), null, { timeout: 30000 });
+    await page.waitForFunction(() => /\d+色 ・ \d+ビーズ/.test(document.querySelector('[data-testid="editor-stats"]')?.textContent ?? ''), null, { timeout: 30000 });
     check('done → editor with bead counts', true);
     await noScroll(page, 'editor');
 
@@ -91,7 +103,7 @@ async function createFromPhoto(page, file = FACE) {
     check('after reload home has 1 card', (await page.locator('[data-testid^="project-card-"]').count()) === 1);
 
     await createFromPhoto(page);
-    await page.getByTestId('prepare-next').click();
+    await nameAndNext(page, '作品B');
     await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
     await page.getByTestId('size-21').click();
     await page.waitForTimeout(1200); // 自動保存（500ms）を待つ
@@ -122,15 +134,12 @@ async function createFromPhoto(page, file = FACE) {
     chooser = page.waitForEvent('filechooser');
     await page.getByTestId('source-photo').click();
     await (await chooser).setFiles(FACE);
-    await page.getByText('下ごしらえ').waitFor({ timeout: 20000 });
+    await page.getByText('画像切り出し').waitFor({ timeout: 20000 });
     check('file: image → prepare', true);
 
-    // 下ごしらえで作品名を変える
+    // 画像切り出しで作品名を決める（最初は空）
     const nameInput = page.getByTestId('prepare-name');
-    const before = await nameInput.inputValue();
-    await nameInput.fill('');
-    await page.getByText('下ごしらえ').click(); // 入力欄の外をタップ
-    check('name: blank restores previous name', (await nameInput.inputValue()) === before, await nameInput.inputValue());
+    check('name: starts empty on the crop screen', (await nameInput.inputValue()) === '', await nameInput.inputValue());
     await nameInput.fill('ねこの顔');
     await page.waitForTimeout(1200); // 自動保存（500ms）を待つ
     await page.goto(BASE);
@@ -141,7 +150,7 @@ async function createFromPhoto(page, file = FACE) {
     menuAnswer = '1';
     await page.goto(BASE);
     await createFromPhoto(page);
-    await page.getByTestId('prepare-next').click();
+    await nameAndNext(page, '作品C');
     await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
     await page.getByTestId('beads-more').click();
     await page.getByTestId('bead-set-owned').click();
@@ -193,6 +202,68 @@ async function createFromPhoto(page, file = FACE) {
     check('owned: remembered after reload (shared by all works)', (await ownedCount()) === '手持ち 12色を選択中', await ownedCount());
     await page.getByTestId('bead-set-8').click();
     check('owned: 8 colors set', (await page.getByTestId('bead-set-count').textContent()) === '8色');
+    await page.getByTestId('bead-set-close').click();
+
+    // 切り抜いて作った作品：.beads には切り抜いた後の画像だけが入る／編集からビーズシートを作り直せる
+    await page.goto(BASE);
+    await createFromPhoto(page);
+    const tl = await page.getByTestId('crop-tl').boundingBox();
+    await page.mouse.move(tl.x + tl.width / 2, tl.y + tl.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(tl.x + tl.width / 2 + 80, tl.y + tl.height / 2 + 80, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(800);
+    await nameAndNext(page, '切り抜き');
+    await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
+    await page.getByTestId('size-13').click();
+    await page.waitForTimeout(800);
+    menuAnswer = '1'; // 16色
+    await page.getByTestId('convert-done').click();
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    menuAnswer = '4'; // メニュー → 書き出し・共有
+    await page.getByTestId('view-menu').click();
+    await page.getByTestId('export-beads').waitFor({ timeout: 30000 });
+    check('export: no mirror switch, no text sharing', (await page.getByTestId('export-text').count()) === 0 && (await page.getByText('左右反転して書き出す').count()) === 0);
+    check('export: the name is editable at the top', (await page.getByTestId('export-name').inputValue()) === '切り抜き');
+    const dl = page.waitForEvent('download');
+    await page.getByTestId('export-beads').click();
+    const beadsPath = path.join(require('node:os').tmpdir(), 'crop-test.beads');
+    await (await dl).saveAs(beadsPath);
+    const { unzipSync, strFromU8 } = require(path.join(__dirname, '..', 'node_modules', 'fflate'));
+    const files = unzipSync(new Uint8Array(fs.readFileSync(beadsPath)));
+    const pj = JSON.parse(strFromU8(files['project.json']));
+    const png = files['source.png'];
+    const pw = png ? (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19] : 0;
+    check('.beads: the crop is baked into the image', pj.source && pj.source.crop === undefined && pw > 0 && pw < 600, `crop=${JSON.stringify(pj.source?.crop)} width=${pw}`);
+    // 書き出しで名前を変える → 編集画面にも反映
+    await page.getByTestId('export-name').fill('切り抜きの顔');
+    const dl2 = page.waitForEvent('download');
+    await page.getByTestId('export-png').click();
+    const pngPath = path.join(require('node:os').tmpdir(), 'crop-test.png');
+    await (await dl2).saveAs(pngPath);
+    const pb = fs.readFileSync(pngPath);
+    const [w, h] = [pb.readUInt32BE(16), pb.readUInt32BE(20)];
+    check('export: PNG has the sheet and the bead list below it', w >= 13 * 24 && h > 13 * 24 + 32 * 2 + 26 + 36, `${w}x${h}`);
+    await page.getByText('‹ 戻る').last().click();
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    check('export: the new name shows in the editor', await page.getByText('切り抜きの顔').first().isVisible());
+    // メニュー → ビーズシートを作り直す（確認 OK）→ サイズを変えて「編集」→ 同じ作品の編集画面に戻る
+    const statsBefore = await page.getByTestId('editor-stats').textContent();
+    menuAnswer = '5';
+    await page.getByTestId('view-menu').click();
+    await page.getByTestId('convert-preview').waitFor({ timeout: 30000 });
+    check('remake: opens the bead-sheet screen', await page.getByText('ビーズシート作成').isVisible());
+    await page.getByTestId('size-21').click();
+    await page.waitForTimeout(1000);
+    await page.getByTestId('convert-done').click();
+    await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(500);
+    check('remake: back in the same work', await page.getByText('切り抜きの顔').first().isVisible());
+    const statsAfter = await page.getByTestId('editor-stats').textContent();
+    check('remake: the editor shows the new sheet (13 → 21)', statsAfter !== statsBefore, `${statsBefore} → ${statsAfter}`);
+    await page.goto(BASE);
+    await page.getByText('切り抜きの顔').first().waitFor({ timeout: 20000 });
+    check('remake: still one work (overwritten, not copied)', (await page.getByText('切り抜きの顔').count()) === 1);
   } catch (e) {
     check('flow completed without exception', false, e.message);
     await page.screenshot({ path: path.join(__dirname, 'failure.png') });

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, type LayoutChangeEvent, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ import { LabeledSlider } from '@/ui/LabeledSlider';
 import { NavBar } from '@/ui/NavBar';
 import { OpenError } from '@/ui/OpenError';
 import { RgbaView } from '@/ui/RgbaView';
+import { notify } from '@/ui/dialogs';
 import { colors, fonts } from '@/ui/theme';
 
 const PREVIEW_MAX = 512;
@@ -23,9 +24,9 @@ export default function Prepare() {
   const image = useDraft((s) => s.image);
   const source = useDraft((s) => s.project?.source);
   const name = useDraft((s) => s.project?.name);
-  // 空のまま確定したら入力欄を作り直して、保存済みの名前を表示し直す
-  const [nameKey, setNameKey] = useState(0);
-  const typed = useRef('');
+  // 入力中の作品名（日本語入力を壊さないよう TextInput は value で縛らず、ここに写す）
+  const typed = useRef<string | null>(null);
+  const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [b, setB] = useState<number | null>(null);
   const [c, setC] = useState<number | null>(null);
@@ -45,35 +46,39 @@ export default function Prepare() {
   }
   const rect = source?.crop ?? (image ? { x: 0, y: 0, w: image.width, h: image.height } : null);
 
+  // 作品名を自分で決めないと次へ進めない
+  const makeSheet = () => {
+    const n = (typed.current ?? name ?? '').trim();
+    if (!n) {
+      notify('作品名を決めてください', '上の「作品名」に名前を入れてから「シート作成」を押してください。');
+      nameRef.current?.focus();
+      return;
+    }
+    draftStore().getState().setName(n);
+    router.push({ pathname: '/new/convert', params: { id } });
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <NavBar
-        title="下ごしらえ"
+        title="画像切り出し"
         left={{ title: '‹ 戻る', onPress: () => router.back() }}
-        right={{ title: '次へ', testID: 'prepare-next', disabled: !ready, onPress: () => router.push({ pathname: '/new/convert', params: { id } }) }}
+        right={{ title: 'シート作成', testID: 'prepare-next', disabled: !ready, onPress: makeSheet }}
       />
       {ready && name !== undefined && (
         <View style={styles.nameRow}>
           <Text style={styles.nameLabel} numberOfLines={1}>作品名</Text>
           {/* 日本語入力を壊さないよう、入力中の文字は TextInput に任せる（value で上書きしない） */}
           <TextInput
-            key={nameKey}
+            ref={nameRef}
             testID="prepare-name"
             defaultValue={name}
-            onFocus={() => {
-              typed.current = name;
-            }}
             onChangeText={(t) => {
               typed.current = t;
               draftStore().getState().setName(t);
             }}
-            onBlur={() => {
-              if (!typed.current.trim()) {
-                typed.current = name;
-                setNameKey((k) => k + 1);
-              }
-            }}
-            placeholder="作品の名前"
+            placeholder="名前を入れてください"
+            placeholderTextColor={colors.subtext}
             maxLength={40}
             clearButtonMode="while-editing"
             returnKeyType="done"

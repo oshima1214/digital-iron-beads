@@ -2,7 +2,7 @@ import { strToU8, zipSync } from 'fflate';
 
 import { defaultConvertSettings } from '../convert/types';
 import { createSheet, idx } from '../sheet/sheet';
-import { BeadsError, packBeads, unpackBeads } from './beads';
+import { BeadsError, bakeCrop, packBeads, unpackBeads } from './beads';
 import { createProject, serializeProject } from './project';
 
 const T0 = new Date('2026-11-10T00:00:00Z');
@@ -60,4 +60,19 @@ test('parseBeads rejects random bytes / zip without project.json / future versio
   future.formatVersion = 9;
   expect(reason(() => unpackBeads(zipSync({ 'project.json': strToU8(JSON.stringify(future)) }), T1))).toBe('future-version');
   expect(reason(() => unpackBeads(zipSync({ 'project.json': strToU8('{"broken":') }), T1))).toBe('bad-project');
+});
+
+test('bakeCrop: the shared image is the cropped part only, and the crop is cleared', () => {
+  const p = createProject('x', createSheet(13, 13), new Date('2026-11-19T00:00:00Z'));
+  p.stage = 'edit';
+  p.source = { image: 'source.png', crop: { x: 2, y: 1, w: 3, h: 2 }, brightness: 10, contrast: 5, convert: defaultConvertSettings(13) };
+  const img = { width: 6, height: 4, data: new Uint8ClampedArray(6 * 4 * 4).map((_, i) => i % 4 === 3 ? 255 : Math.floor(i / 4)) };
+  const r = bakeCrop(p, img);
+  expect([r.image.width, r.image.height]).toEqual([3, 2]);
+  expect(r.image.data[0]).toBe(1 * 6 + 2); // 元の (2,1) のピクセル
+  expect(r.project.source?.crop).toBeUndefined();
+  expect(r.project.source?.brightness).toBe(10); // 明るさなどは設定のまま
+  expect(p.source.crop).toEqual({ x: 2, y: 1, w: 3, h: 2 }); // 元の作品は変えない
+  const none = { ...p, source: { ...p.source, crop: undefined } };
+  expect(bakeCrop(none, img).image).toBe(img);
 });
