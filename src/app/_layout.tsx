@@ -1,4 +1,7 @@
 import { BIZUDPGothic_400Regular, BIZUDPGothic_700Bold, useFonts } from '@expo-google-fonts/biz-udpgothic';
+import { DotGothic16_400Regular } from '@expo-google-fonts/dotgothic16';
+import { MochiyPopOne_400Regular } from '@expo-google-fonts/mochiy-pop-one';
+import { ZenMaruGothic_900Black } from '@expo-google-fonts/zen-maru-gothic';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
@@ -14,7 +17,7 @@ import type { TitleScreen as TitleScreenType } from '@/ui/TitleScreen';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({ BIZUDPGothic_400Regular, BIZUDPGothic_700Bold });
+  const [loaded, error] = useFonts({ BIZUDPGothic_400Regular, BIZUDPGothic_700Bold, MochiyPopOne_400Regular, DotGothic16_400Regular, ZenMaruGothic_900Black });
 
   useEffect(() => {
     const sub = flushOnBackground(

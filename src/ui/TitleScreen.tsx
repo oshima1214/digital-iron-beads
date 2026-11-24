@@ -15,9 +15,20 @@ const FUJI_RATIO = 48 / 72;
 export const TITLE_MS = 2600;
 const FADE_MS = 300;
 
-/** 背景（パーラービーズのプレートのような点）と、散らばったビーズの色 */
-const BG = '#FFF8EC';
-const PEG = '#EFE3CF';
+/** 見た目の案（フォントと背景）。完成イメージで見比べるため。決まったら1つにする */
+type Look = { font: string; bg: [string, string]; peg: string; pill: string; pillInk: string };
+const LOOKS: Record<string, Look> = {
+  pop: { font: 'MochiyPopOne_400Regular', bg: ['#7FD3FF', '#D6F4FF'], peg: 'rgba(255,255,255,0.6)', pill: '#FF4F84', pillInk: '#FFFFFF' },
+  dot: { font: 'DotGothic16_400Regular', bg: ['#14213D', '#2A3D6B'], peg: 'rgba(255,255,255,0.13)', pill: '#FFD400', pillInk: '#14213D' },
+  maru: { font: 'ZenMaruGothic_900Black', bg: ['#FFD9E6', '#FFF4C2'], peg: 'rgba(255,255,255,0.75)', pill: '#7A4CC2', pillInk: '#FFFFFF' },
+};
+function pickLook(): Look {
+  const q = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search).get('look') : null;
+  return LOOKS[q ?? ''] ?? LOOKS.pop;
+}
+const LOOK = pickLook();
+const BG = LOOK.bg[0];
+const PEG = LOOK.peg;
 const BEAD_COLORS = ['#DD0808', '#FF7B00', '#FFD400', '#35963F', '#58ABE5', '#2B3F87', '#703B9B', '#FF6F98'];
 /** 「アイロンビーズ」の1文字ずつのビーズの色（黄色だけ文字を濃くする） */
 const LETTERS: { ch: string; color: string; ink: string }[] = [
@@ -77,14 +88,18 @@ export function TitleScreen({ onDone }: { onDone(): void }) {
         (c) => {
           const paint = Skia.Paint();
           paint.setAntiAlias(true);
+          // 上から下へのグラデーション
+          paint.setShader(Skia.Shader.MakeLinearGradient({ x: 0, y: 0 }, { x: 0, y: height }, [Skia.Color(LOOK.bg[0]), Skia.Color(LOOK.bg[1])], null, 0));
+          c.drawRect(Skia.XYWHRect(0, 0, width, height), paint);
+          paint.setShader(null);
           paint.setColor(Skia.Color(PEG));
           for (const p of pegs) c.drawCircle(p.x, p.y, 1.6, paint);
           for (const b of loose) {
             paint.setColor(Skia.Color(b.color));
             paint.setAlphaf(0.85);
             c.drawCircle(b.x, b.y, b.r, paint);
-            paint.setColor(Skia.Color(BG));
-            paint.setAlphaf(1);
+            paint.setColor(Skia.Color('#FFFFFF'));
+            paint.setAlphaf(0.9);
             c.drawCircle(b.x, b.y, b.r * 0.38, paint);
           }
         },
@@ -132,8 +147,8 @@ export function TitleScreen({ onDone }: { onDone(): void }) {
 
           <View style={styles.titleBlock} accessible accessibilityRole="header" accessibilityLabel="デジタルアイロンビーズ">
             <Image source={ILLUST} style={[styles.illust, { width: bead * 3.2, height: bead * 3.2, right: -bead * 0.9, top: -bead * 2.6 }]} resizeMode="contain" />
-            <View style={styles.digitalPill}>
-              <Text style={[styles.digital, { fontSize: Math.round(bead * 0.42) }]}>デジタル</Text>
+            <View style={[styles.digitalPill, { backgroundColor: LOOK.pill }]}>
+              <Text style={[styles.digital, { fontFamily: LOOK.font, color: LOOK.pillInk, fontSize: Math.round(bead * 0.42) }]}>デジタル</Text>
             </View>
             <View style={styles.letters}>
               {LETTERS.map((l, i) => (
@@ -144,7 +159,7 @@ export function TitleScreen({ onDone }: { onDone(): void }) {
                     { width: bead, height: bead, borderRadius: bead / 2, backgroundColor: l.color },
                     { transform: [{ scale: pops[i] }, { rotate: i % 2 ? '6deg' : '-6deg' }] },
                   ]}>
-                  <Text style={[styles.letter, { color: l.ink, fontSize: Math.round(bead * 0.56), lineHeight: Math.round(bead * 0.7) }]}>{l.ch}</Text>
+                  <Text style={[styles.letter, { fontFamily: LOOK.font, color: l.ink, fontSize: Math.round(bead * 0.56), lineHeight: Math.round(bead * 0.7) }]}>{l.ch}</Text>
                 </Animated.View>
               ))}
             </View>
