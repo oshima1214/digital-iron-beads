@@ -9,6 +9,7 @@ import { editorStore } from '@/state/editor';
 import { flushAll, flushOnBackground } from '@/state/lifecycle';
 import { navStore } from '@/state/nav';
 import { RootStack } from '@/ui/RootStack';
+import { TitleScreen } from '@/ui/TitleScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,11 +37,18 @@ export default function RootLayout() {
   }, []);
 
   const ready = (loaded || !!error) && skiaReady;
+  // 起動したときだけタイトルを出す（showing → done。ホームなどはその下で先に用意しておく）
+  const [title, setTitle] = useState<'showing' | 'done'>('showing');
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
   if (!ready) return null;
 
-  return <RootStack />;
+  return (
+    <>
+      <RootStack />
+      {title === 'showing' && <TitleScreen onDone={() => setTitle('done')} />}
+    </>
+  );
 }
