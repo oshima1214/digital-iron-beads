@@ -1,4 +1,5 @@
 import type { Project, ProjectSummary } from '@/core/file/project';
+import { beadSetLabel } from '@/core/palette/projectBeads';
 
 export interface ProjectRepo {
   /** updatedAt の新しい順。壊れた作品は除き console.warn で知らせる。 */
@@ -15,7 +16,7 @@ export interface ProjectRepo {
 }
 
 export function summarize(p: Project): ProjectSummary {
-  return { id: p.id, name: p.name, updatedAt: p.updatedAt, stage: p.stage, sheet: p.sheet };
+  return { id: p.id, name: p.name, updatedAt: p.updatedAt, stage: p.stage, sheet: p.sheet, beads: beadSetLabel(p), size: p.stage === 'setup' && p.source ? p.source.convert.size : p.sheet.width };
 }
 
 export function byUpdatedDesc(a: { updatedAt: string }, b: { updatedAt: string }): number {

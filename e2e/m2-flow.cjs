@@ -112,6 +112,8 @@ async function createFromPhoto(page, file = FACE) {
     await page.goto(BASE);
     await page.locator('[data-testid^="project-card-"]').first().waitFor({ timeout: 30000 });
     check('after reload home has 1 card', (await page.locator('[data-testid^="project-card-"]').count()) === 1);
+    const spec = await page.locator('[data-testid^="project-spec-"]').first().textContent();
+    check('home card shows size and colors (13×13 ・ 32色)', spec === '13×13 ・ 32色', spec);
 
     await createFromPhoto(page);
     await nameAndNext(page, '作品B');

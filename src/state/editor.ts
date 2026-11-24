@@ -4,6 +4,7 @@ import type { Project } from '@/core/file/project';
 import { History } from '@/core/history/history';
 import { RANGE_IDLE, type RangeEvent, rangeOf, type RangeState, rangeStep } from '@/core/machines/rangeSelect';
 import { PALETTE } from '@/core/palette/perler';
+import { editorPalette } from '@/core/palette/projectBeads';
 import { countBeads } from '@/core/sheet/counts';
 import { applyChanges, brushCells, type Cell, type CellChange, floodFill, lineCells, outline, paintCells, rectCells } from '@/core/sheet/ops';
 import { idx } from '@/core/sheet/sheet';
@@ -150,13 +151,16 @@ export function createEditorStore(
         try {
           const p = await repo.load(id);
           const top = countBeads(p.sheet)[0];
+          // 最初の色：一番多く使っている色。なければ黒、黒が選べない作品（2色など）は選べる色の最初
+          const pal = editorPalette(p);
+          const first = top ? top.index : pal.includes(BLACK) ? BLACK : pal[0];
           set({
             project: p,
             error: null,
             version: get().version + 1,
             committed: get().committed + 1,
             tool: 'pen',
-            color: top ? top.index : BLACK,
+            color: first,
             selection: new Set(),
             range: null,
             rangePhase: 'idle',
