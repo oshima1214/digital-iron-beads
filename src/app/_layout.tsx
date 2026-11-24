@@ -1,4 +1,5 @@
 import { BIZUDPGothic_400Regular, BIZUDPGothic_700Bold, useFonts } from '@expo-google-fonts/biz-udpgothic';
+import { MochiyPopOne_400Regular } from '@expo-google-fonts/mochiy-pop-one';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
@@ -9,12 +10,12 @@ import { editorStore } from '@/state/editor';
 import { flushAll, flushOnBackground } from '@/state/lifecycle';
 import { navStore } from '@/state/nav';
 import { RootStack } from '@/ui/RootStack';
-import { TitleScreen } from '@/ui/TitleScreen';
+import type { TitleScreen as TitleScreenType } from '@/ui/TitleScreen';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({ BIZUDPGothic_400Regular, BIZUDPGothic_700Bold });
+  const [loaded, error] = useFonts({ BIZUDPGothic_400Regular, BIZUDPGothic_700Bold, MochiyPopOne_400Regular });
 
   useEffect(() => {
     const sub = flushOnBackground(
@@ -44,6 +45,9 @@ export default function RootLayout() {
   }, [ready]);
 
   if (!ready) return null;
+  // タイトル画面は Skia を使うので、Skia の読み込み（Web）が済んでから読み込む
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const TitleScreen = (require('@/ui/TitleScreen') as { TitleScreen: typeof TitleScreenType }).TitleScreen;
 
   return (
     <>
