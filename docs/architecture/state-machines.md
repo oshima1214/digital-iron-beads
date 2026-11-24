@@ -45,6 +45,7 @@ idle ──press──▶ dragging ──release（動かした）──▶ idle
 | 処理中 | `new/index.tsx`・`export/[id].tsx` の `busy`、`convert.tsx` の `converting`、`draft.ts` の `busy` | `boolean` | 「待ち」と「処理中」の2つだけ |
 | 起動 | `src/app/_layout.tsx` | フォント × Skia の読み込み → `ready` | 起動のときに1回通るだけ |
 | 操作の結果の一言 | `editor.ts` の `notice` | `null` / `'same-color'`（バケツで同じ色をタップした） | 次の操作（色・道具を選ぶ、バケツ）で消えるだけ。理由が増えたら union に足す |
+| タイトル画面 | `src/app/_layout.tsx` の `title` | `showing` →（2秒たつ・タップ・薄くなって消える）→ `done` | 起動したときだけ。2つしかない |
 | 受け取ったファイル | `src/state/incoming.ts` | `pending`（あり / なし） | 2つだけ |
 | 元に戻す | `src/core/history/history.ts` | 積んだ差分と位置 | すでに1つのクラスに閉じている |
 | ピンチ・切り抜き枠のドラッグ | `EditorCanvas.tsx`・`CropBox.tsx` の ref | ジェスチャー中だけの値 | 描画のたびに作り直さないための入れ物で、場面の判断には使っていない |

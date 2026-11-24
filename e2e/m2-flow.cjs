@@ -61,6 +61,17 @@ async function createFromPhoto(page, file = FACE) {
   });
   try {
     await page.goto(BASE);
+    // 起動するとタイトル画面が出て、少しすると消える
+    await page.getByTestId('title-screen').waitFor({ timeout: 30000 });
+    check('title: shown at start', true);
+    await page.getByTestId('title-screen').waitFor({ state: 'detached', timeout: 5000 });
+    check('title: closes by itself', true);
+    // タップでもすぐ閉じる
+    await page.reload();
+    await page.getByTestId('title-screen').waitFor({ timeout: 30000 });
+    await page.getByTestId('title-screen').click();
+    await page.getByTestId('title-screen').waitFor({ state: 'detached', timeout: 1500 });
+    check('title: a tap closes it right away', true);
     await page.getByText('まだ作品がありません').waitFor({ timeout: 30000 });
     check('home shows empty state', true);
     await noScroll(page, 'home');
