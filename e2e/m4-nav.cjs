@@ -47,8 +47,11 @@ async function noScroll(page, label) {
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     const id = page.url().split('/').pop().split('?')[0];
     check('58 sheet created and editor opened', id.length > 5, id);
-    check('editor shows only the 16 colors the work was made with', (await page.locator('[data-testid^="color-"]').count()) === 16, String(await page.locator('[data-testid^="color-"]').count()));
-    check('editor shows the chosen color name', /16色から/.test((await page.getByTestId('palette-current').textContent()) ?? ''), await page.getByTestId('palette-current').textContent());
+    check('editor shows only the 16 colors the work was made with', (await page.locator('[data-testid^="color-"]:not([data-testid^="color-count-"])').count()) === 16, String(await page.locator('[data-testid^="color-"]:not([data-testid^="color-count-"])').count()));
+    check('editor shows the chosen color name and how many colors are used', /使用 \d+色／16色/.test((await page.getByTestId('palette-current').textContent()) ?? ''), await page.getByTestId('palette-current').textContent());
+    const badges = await page.locator('[data-testid^="color-count-"]').count();
+    const usedN = Number(/(\d+)色 ・/.exec((await page.getByTestId('editor-stats').textContent()) ?? '')?.[1]);
+    check('colors used on the sheet have a count badge (one per used color)', badges === usedN && badges > 0, `${badges} badges / ${usedN} colors`);
 
     await page.getByTestId('to-nav').click();
     await page.getByTestId('nav-current').waitFor({ timeout: 30000 });
@@ -86,7 +89,7 @@ async function noScroll(page, label) {
     await page.goBack();
     await page.getByTestId('editor-canvas').waitFor({ timeout: 30000 });
     const statsBefore = await page.getByTestId('editor-stats').textContent();
-    await page.locator('[data-testid^="color-"]').last().click(); // 16色のうち図案で使っていない色（使っている色が先頭に並ぶので最後）で塗って、必ず保存が起きるようにする
+    await page.locator('[data-testid^="color-"]:not([data-testid^="color-count-"])').last().click(); // 16色のうち図案で使っていない色（使っている色が先頭に並ぶので最後）で塗って、必ず保存が起きるようにする
     const eb = await page.getByTestId('editor-canvas').boundingBox();
     await page.mouse.click(eb.x + eb.width / 2, eb.y + eb.height / 2);
     await page.waitForTimeout(300);
