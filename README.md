@@ -20,6 +20,107 @@ npm start           # 開発サーバ
 
 比較ハーネス（M1 で追加）: `npm run fixtures && npm run compare` → `tools/compare/out/index.html`
 
+## はじめての人へ：リポジトリから実機で試すまで
+
+GitHub のこのリポジトリしか知らない人が、自分の iPhone・iPad でアプリを試せるようになるまでの流れ。上から順に進める。
+
+### 0. 用意するもの
+
+| もの | 用途 |
+|---|---|
+| iPhone または iPad | 試す端末。App Store から **Expo Go**（無料）を入れる |
+| Expo のアカウント（無料） | [expo.dev](https://expo.dev) で作る。**ユーザー名**を控えておく |
+| パソコン（Windows / Mac） | 自分で新しい版を配信するときだけ必要。試すだけなら不要 |
+
+### 1. 試すための許可をもらう（全員）
+
+このアプリの配信は、Expo の組織 `digital-iron-beads-team` のメンバーだけが開ける。
+
+1. 持ち主（リポジトリのオーナー）に、Expo の**ユーザー名**を伝えて招待してもらう
+2. 招待メールが届いたら、ブラウザの**シークレット（プライベート）ウインドウ**で expo.dev に**自分のアカウントで**ログインし、そのウインドウで招待のリンクを開いて承認する
+   - ほかの人がログインしたままのブラウザで開くと、その人として処理されて自分はメンバーにならない
+3. iPhone / iPad の Expo Go を開き、同じアカウントでログインする
+
+### 2-A. 試すだけの人
+
+持ち主や配信する人から送られてくる QR コード（expo.dev の更新ページの「Preview」）を、iPhone / iPad のカメラで読んで「Expo Go で開く」。
+新しい版が出たら、Expo Go を**完全に終了してから**開き直す（変わらなければもう一度）。
+詳しい手順・報告のしかた・注意事項は [docs/testing/device-testing.md](docs/testing/device-testing.md)。
+
+### 2-B. 自分で配信もする人（パソコンの準備）
+
+1. パソコンに入れる
+   - [Git](https://git-scm.com/downloads)
+   - [Node.js](https://nodejs.org/) の **22**（CI と同じ版。LTS の 22.x を選ぶ）
+2. リポジトリを取ってくる（PowerShell / ターミナルで1行ずつ）
+
+```bash
+git clone https://github.com/oshima1214/digital-iron-beads.git
+```
+
+```bash
+cd digital-iron-beads
+```
+
+```bash
+npm ci
+```
+
+   - 「vulnerabilities」の警告が出ても気にしない。**`npm audit fix --force` は実行しない**（Expo の部品の版が変わって動かなくなる）
+
+3. Expo にログインする（1. で招待を承認したアカウント）
+
+```bash
+npx eas-cli@latest login
+```
+
+4. 配信する（`--message` には何を変えたかを書く）
+
+```bash
+npx eas-cli@latest update --branch preview --environment preview --platform ios --message "変更の説明"
+```
+
+5. 表示された URL を開き、「Preview」の QR コードを iPhone / iPad のカメラで読む。試す人にもこの QR コードを送る
+
+### 3. 2回目からの配信
+
+リポジトリのフォルダで、最新にしてから配信する。
+
+```bash
+git pull
+```
+
+```bash
+npm ci
+```
+
+```bash
+npx eas-cli@latest update --branch preview --environment preview --platform ios --message "変更の説明"
+```
+
+配信できたかは次で確かめられる（一番上に今の説明が出ていれば成功）。
+
+```bash
+npx eas-cli@latest update:list --branch preview
+```
+
+### 4. 何を確かめるか
+
+実機確認リストは [docs/checklists/](docs/checklists/) にある。結果の欄に OK や気づいたことを書く。
+
+### うまくいかないとき
+
+| 症状 | 対処 |
+|---|---|
+| Expo Go で「There was a problem loading the project」や 403 | Expo Go にログインしていない、または招待を承認していない。1. をやり直す |
+| 「We couldn't find this invitation」 | 招待が無効になっている。持ち主に**ユーザー名で**招待し直してもらう |
+| 開けるが古いまま | Expo Go を完全に終了して開き直す。配信したかは `update:list` で確かめる |
+| `cd digital-iron-beads` で「パスが存在しない」 | `git clone` をしたフォルダにいない。clone した場所で実行するか、2-B の 2. からやり直す |
+| `git pull` で「not a git repository」 | リポジトリのフォルダの中で実行していない。`cd digital-iron-beads` してから |
+| Expo Go が「SDK に対応していない」 | Expo Go の更新で、このアプリの版（Expo SDK 58）に対応しなくなった。持ち主に知らせる |
+
+Expo Go では、アプリのアイコンと、AirDrop や「ファイル」アプリから `.beads` を開く機能は試せない（TestFlight で確認する）。
+
 ## 実機での確認
 
 Expo Go（App Store の無料アプリ）の中で、iPhone・iPad のネイティブアプリとして動かせる。開ける人の条件は方法によって違う（2026年11月に確認）。
