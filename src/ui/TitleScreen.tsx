@@ -15,18 +15,8 @@ const FUJI_RATIO = 48 / 72;
 export const TITLE_MS = 2600;
 const FADE_MS = 300;
 
-/** 見た目の案（フォントと背景）。完成イメージで見比べるため。決まったら1つにする */
-type Look = { font: string; bg: [string, string]; peg: string; pill: string; pillInk: string };
-const LOOKS: Record<string, Look> = {
-  pop: { font: 'MochiyPopOne_400Regular', bg: ['#7FD3FF', '#D6F4FF'], peg: 'rgba(255,255,255,0.6)', pill: '#FF4F84', pillInk: '#FFFFFF' },
-  dot: { font: 'DotGothic16_400Regular', bg: ['#14213D', '#2A3D6B'], peg: 'rgba(255,255,255,0.13)', pill: '#FFD400', pillInk: '#14213D' },
-  maru: { font: 'ZenMaruGothic_900Black', bg: ['#FFD9E6', '#FFF4C2'], peg: 'rgba(255,255,255,0.75)', pill: '#7A4CC2', pillInk: '#FFFFFF' },
-};
-function pickLook(): Look {
-  const q = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search).get('look') : null;
-  return LOOKS[q ?? ''] ?? LOOKS.pop;
-}
-const LOOK = pickLook();
+/** 見た目（案1 ポップ）：モッチーポップの文字、水色のグラデーション、白いプレートの点、ピンクの帯 */
+const LOOK = { font: 'MochiyPopOne_400Regular', bg: ['#7FD3FF', '#D6F4FF'] as const, peg: 'rgba(255,255,255,0.6)', pill: '#FF4F84', pillInk: '#FFFFFF' };
 const BG = LOOK.bg[0];
 const PEG = LOOK.peg;
 const BEAD_COLORS = ['#DD0808', '#FF7B00', '#FFD400', '#35963F', '#58ABE5', '#2B3F87', '#703B9B', '#FF6F98'];
