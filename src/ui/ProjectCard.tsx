@@ -32,6 +32,9 @@ export function ProjectCard({ item, size, onPress, onLongPress }: Props) {
       <Text style={styles.name} numberOfLines={1}>
         {item.name || '名前なし'}
       </Text>
+      <Text style={styles.spec} numberOfLines={1} testID={`project-spec-${item.id}`}>
+        {item.size}×{item.size} ・ {item.beads}
+      </Text>
       <Text style={styles.meta}>
         {shortDate(item.updatedAt)}
         {item.stage === 'setup' ? ' ・ 作成中' : ''}
@@ -44,5 +47,6 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.panel, borderRadius: 12, padding: 8, gap: 4 },
   thumb: { borderRadius: 8, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.separator },
   name: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
+  spec: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent },
   meta: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext },
 });

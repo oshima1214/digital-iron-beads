@@ -9,6 +9,7 @@ import { beadByIndex } from '@/core/palette/perler';
 import { mirrorPlateIndex } from '@/core/sheet/plates';
 import { navStore, useNav } from '@/state/nav';
 import { Button } from '@/ui/Button';
+import { NavButton } from '@/ui/NavButton';
 import { OpenError } from '@/ui/OpenError';
 import { PlateMiniMap } from '@/ui/PlateMiniMap';
 import { type PlateFit, PlateStage } from '@/ui/PlateStage';
@@ -63,16 +64,12 @@ export default function Nav() {
   const panel = ready && (
     <View style={[styles.panel, dev.isPad && dev.stage === 'side' && styles.sidePanel]}>
       <View style={styles.top}>
-        <Pressable accessibilityRole="button" testID="nav-back" onPress={() => void backToEditor()} hitSlop={8} style={styles.hit}>
-          <Text style={styles.link}>‹ 編集</Text>
-        </Pressable>
+        <NavButton title="‹ 編集" testID="nav-back" onPress={() => void backToEditor()} />
         <Text style={styles.title} numberOfLines={1} testID="nav-title">
           {project.name}
           {plates.length > 1 ? ` ・ プレート ${visualIndex + 1}/${plates.length}` : ''}
         </Text>
-        <Pressable accessibilityRole="button" testID="nav-mirror" onPress={() => st().toggleMirror()} hitSlop={8} style={styles.hit}>
-          <Text style={styles.link}>{mirror ? '⇋ 反転中' : '⇋ 反転'}</Text>
-        </Pressable>
+        <NavButton title={mirror ? '⇋ 反転中' : '⇋ 反転'} testID="nav-mirror" onPress={() => st().toggleMirror()} />
       </View>
       {dev.needsCalibration && (
         <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={styles.banner}>
@@ -165,9 +162,7 @@ export default function Nav() {
   // iPad mini の横向きなど、横にパネルを置くとプレートが入らないとき：上に1行だけの薄いパネル
   const compactPanel = ready && (
     <View style={[styles.panel, styles.compact]}>
-      <Pressable accessibilityRole="button" testID="nav-back" onPress={() => void backToEditor()} hitSlop={8} style={styles.hit}>
-        <Text style={styles.link}>‹ 編集</Text>
-      </Pressable>
+      <NavButton title="‹ 編集" testID="nav-back" onPress={() => void backToEditor()} />
       <Button title="◀" variant="secondary" onPress={() => st().prev()} testID="nav-prev" style={styles.mini} />
       <Text style={[styles.big, { flex: 1 }]} testID="nav-current" numberOfLines={1}>
         {phase === 'empty'
@@ -200,9 +195,7 @@ export default function Nav() {
       {plates.length > 1 && (
         <Button title={`プレート ${visualIndex + 1}/${plates.length} ▸`} variant="plain" onPress={() => st().setPlate(toData((visualIndex + 1) % plates.length))} testID="nav-title" />
       )}
-      <Pressable accessibilityRole="button" testID="nav-mirror" onPress={() => st().toggleMirror()} hitSlop={8} style={styles.hit}>
-        <Text style={styles.link}>{mirror ? '⇋反転中' : '⇋'}</Text>
-      </Pressable>
+      <NavButton title={mirror ? '⇋反転中' : '⇋'} accessibilityLabel="左右反転" testID="nav-mirror" onPress={() => st().toggleMirror()} />
     </View>
   );
 
@@ -249,7 +242,7 @@ const styles = StyleSheet.create({
   sidePanel: { width: SIDE_PANEL_W, marginBottom: 0, marginVertical: 8 },
   compact: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
   mini: { width: 48 },
-  top: { height: 44, flexDirection: 'row', alignItems: 'center' },
+  top: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 6 },
   hit: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   link: { fontFamily: fonts.regular, fontSize: 16, color: colors.accent },
   title: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 15, color: colors.text },

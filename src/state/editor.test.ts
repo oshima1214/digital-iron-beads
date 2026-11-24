@@ -1,3 +1,4 @@
+import { defaultConvertSettings } from '@/core/convert/types';
 import { createProject } from '@/core/file/project';
 import { PERLER32 } from '@/core/palette/perler';
 import { createSheet, idx } from '@/core/sheet/sheet';
@@ -271,4 +272,14 @@ test('setName renames the open work (trimmed, autosaved); blank is ignored', asy
   expect(store.getState().project?.name).toBe('ねこ');
   await jest.advanceTimersByTimeAsync(600);
   expect((await repo.load(id)).name).toBe('ねこ');
+});
+
+test('opening a 16-color work picks a color from those 16', async () => {
+  const repo = createMemoryRepo();
+  const p = createProject('作品', createSheet(13, 13), new Date('2026-11-10T00:00:00Z'));
+  p.source = { image: 'source.png', brightness: 0, contrast: 0, convert: { ...defaultConvertSettings(13), preset: 'twoColor', twoColor: { dark: 8, light: 1, threshold: 0.5 } } };
+  await repo.save(p);
+  const store = createEditorStore(repo);
+  await store.getState().open(p.id);
+  expect([1, 8]).toContain(store.getState().color); // 空のシートでも、黒（5018）ではなく2色のどちらか
 });

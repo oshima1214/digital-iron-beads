@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { countBeads } from '@/core/sheet/counts';
@@ -12,6 +12,7 @@ import { CountsSheet } from '@/ui/editor/CountsSheet';
 import { EditorCanvas } from '@/ui/editor/EditorCanvas';
 import { loadStatus } from '@/core/machines/loadStatus';
 import { editorMode } from '@/core/machines/phases';
+import { NavButton } from '@/ui/NavButton';
 import { BrushBar } from '@/ui/editor/BrushBar';
 import { PaletteBar } from '@/ui/editor/PaletteBar';
 import { SELECTION_BAR_HEIGHT, SelectionBar } from '@/ui/editor/SelectionBar';
@@ -99,33 +100,24 @@ export default function Editor() {
     router.push({ pathname: '/nav/[id]', params: { id } });
   };
 
+  // 上の帯：大きなボタンを並べる。作品名は下の行に出す（ボタンを大きくしたので、ここには入らない）
   const topBar = (
     <View style={styles.top}>
-      <Pressable accessibilityRole="button" onPress={() => router.dismissTo('/')} hitSlop={8} style={styles.hit}>
-        <Text style={styles.link}>‹ ホーム</Text>
-      </Pressable>
-      <Text style={styles.title} numberOfLines={1}>
-        {ready ? project.name : ''}
-      </Text>
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="button" accessibilityLabel="元に戻す" testID="undo" disabled={!canUndo} onPress={() => st().undo()} hitSlop={6} style={styles.hit}>
-          <Text style={[styles.icon, !canUndo && styles.off]}>↶</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="やり直す" testID="redo" disabled={!canRedo} onPress={() => st().redo()} hitSlop={6} style={styles.hit}>
-          <Text style={[styles.icon, !canRedo && styles.off]}>↷</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" testID="view-menu" onPress={() => void viewMenu()} hitSlop={6} style={styles.hit}>
-          <Text style={styles.link}>メニュー</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" testID="to-nav" disabled={!ready} onPress={() => void toNav()} hitSlop={6} style={styles.hit}>
-          <Text style={styles.link}>ナビ</Text>
-        </Pressable>
-      </View>
+      <NavButton title="‹ ホーム" onPress={() => router.dismissTo('/')} testID="to-home" />
+      <View style={{ flex: 1 }} />
+      <NavButton title="↶" accessibilityLabel="元に戻す" testID="undo" disabled={!canUndo} onPress={() => st().undo()} />
+      <NavButton title="↷" accessibilityLabel="やり直す" testID="redo" disabled={!canRedo} onPress={() => st().redo()} />
+      <NavButton title="メニュー" testID="view-menu" onPress={() => void viewMenu()} />
+      <NavButton title="ナビ" testID="to-nav" disabled={!ready} onPress={() => void toNav()} primary />
     </View>
   );
   const stats = (
-    <Text style={styles.stats} testID="editor-stats" numberOfLines={1}>
+    <Text style={styles.stats} numberOfLines={1}>
+      <Text style={styles.name}>{ready ? project.name : ''}</Text>
+      {ready ? '  ' : ''}
+      <Text testID="editor-stats">
       {ready ? `${counts.length}色 ・ ${total}ビーズ${mirror ? ' ・ 反転中' : ''}${melted ? ' ・ 完成イメージ' : ''}${mode === 'select' && rangePhase === 'anchored' ? ' ・ 範囲：もう一方の角をタップ' : ''}${plate && plates.length > 1 ? ` ・ プレート ${(mirror ? mirrorPlateIndex(plates, plate.index) : plate.index) + 1}/${plates.length}` : ''}` : ' '}
+      </Text>
     </Text>
   );
   const tools = (
@@ -194,13 +186,8 @@ export default function Editor() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 12 },
-  top: { height: 48, flexDirection: 'row', alignItems: 'center' },
-  hit: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
-  link: { fontFamily: fonts.regular, fontSize: 17, color: colors.accent },
-  title: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 17, color: colors.text },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  icon: { fontSize: 22, color: colors.accent },
-  off: { opacity: 0.3 },
+  top: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
   stats: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, marginBottom: 4 },
   canvas: { flex: 1, backgroundColor: colors.panel, borderRadius: 12, overflow: 'hidden' },
   notice: { color: colors.text, fontFamily: fonts.bold },

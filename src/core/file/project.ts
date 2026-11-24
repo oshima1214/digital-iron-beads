@@ -35,6 +35,10 @@ export interface ProjectSummary {
   updatedAt: string;
   stage: Project['stage'];
   sheet: Sheet;
+  /** 何色で作ったか（例：16色、手持ち12色、2色、64色） */
+  beads: string;
+  /** シートの大きさ（マス）。作成中の作品は、ビーズシート作成で選んでいる大きさ */
+  size: number;
 }
 
 export class ProjectParseError extends Error {

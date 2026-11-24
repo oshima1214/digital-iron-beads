@@ -15,6 +15,7 @@ import { flushAll } from '@/state/lifecycle';
 import { navStore } from '@/state/nav';
 import { projectsStore, useProjects } from '@/state/projects';
 import { Button } from '@/ui/Button';
+import { NavButton } from '@/ui/NavButton';
 import { confirmDestructive, notify, promptText, showMenu } from '@/ui/dialogs';
 import { ProjectCard } from '@/ui/ProjectCard';
 import { colors, fonts } from '@/ui/theme';
@@ -89,8 +90,8 @@ export default function Home() {
       <View style={styles.header}>
         <Text style={styles.title}>作品</Text>
         <View style={styles.headerActions}>
-          <Button title="読み込み" variant="plain" onPress={() => void pickAndImport()} testID="import-file" />
-          <Button title="設定" variant="plain" onPress={() => router.push('/settings')} testID="open-settings" />
+          <NavButton title="読み込み" onPress={() => void pickAndImport()} testID="import-file" />
+          <NavButton title="設定" onPress={() => router.push('/settings')} testID="open-settings" />
         </View>
       </View>
       <View style={styles.list} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
@@ -121,7 +122,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 16 },
-  headerActions: { flexDirection: 'row', gap: 4 },
+  headerActions: { flexDirection: 'row', gap: 6 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 12 },
   title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text },
   list: { flex: 1 },
