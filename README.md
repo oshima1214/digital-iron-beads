@@ -32,9 +32,9 @@ GitHub のこのリポジトリしか知らない人が、自分の iPhone・iPa
 | Expo のアカウント（無料） | [expo.dev](https://expo.dev) で作る。**ユーザー名**を控えておく |
 | パソコン（Windows / Mac） | 自分で新しい版を配信するときだけ必要。試すだけなら不要 |
 
-### 1. 試すための許可をもらう（全員）
+### 1. 試すための許可をもらう（全員。配信する人も）
 
-このアプリの配信は、Expo の組織 `digital-iron-beads-team` のメンバーだけが開ける。
+このアプリは Expo の組織 `digital-iron-beads-team` のプロジェクトなので、配信を**開く**のも、新しい版を**配信する**のも、その組織のメンバーだけができる。配信する人は役割が **Developer 以上**であること（Viewer では配信できない）。
 
 1. 持ち主（リポジトリのオーナー）に、Expo の**ユーザー名**を伝えて招待してもらう
 2. 招待メールが届いたら、ブラウザの**シークレット（プライベート）ウインドウ**で expo.dev に**自分のアカウントで**ログインし、そのウインドウで招待のリンクを開いて承認する
@@ -68,7 +68,7 @@ npm ci
 
    - 「vulnerabilities」の警告が出ても気にしない。**`npm audit fix --force` は実行しない**（Expo の部品の版が変わって動かなくなる）
 
-3. Expo にログインする（1. で招待を承認したアカウント）
+3. Expo にログインする（1. で招待を承認したアカウント。組織のメンバーでないと、4. で権限のエラーになる）
 
 ```bash
 npx eas-cli@latest login
@@ -116,6 +116,7 @@ npx eas-cli@latest update:list --branch preview
 | 「We couldn't find this invitation」 | 招待が無効になっている。持ち主に**ユーザー名で**招待し直してもらう |
 | 開けるが古いまま | Expo Go を完全に終了して開き直す。配信したかは `update:list` で確かめる |
 | `cd digital-iron-beads` で「パスが存在しない」 | `git clone` をしたフォルダにいない。clone した場所で実行するか、2-B の 2. からやり直す |
+| 配信（`eas update`）で権限のエラー（403 / not authorized など） | ログインしているアカウントが組織のメンバーでない、または役割が Viewer。持ち主に招待・役割の変更（Developer）を頼む。`npx eas-cli@latest whoami` でログイン中のアカウントを確かめる |
 | `git pull` で「not a git repository」 | リポジトリのフォルダの中で実行していない。`cd digital-iron-beads` してから |
 | Expo Go が「SDK に対応していない」 | Expo Go の更新で、このアプリの版（Expo SDK 58）に対応しなくなった。持ち主に知らせる |
 
