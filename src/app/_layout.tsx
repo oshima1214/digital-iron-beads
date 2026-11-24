@@ -9,7 +9,7 @@ import { editorStore } from '@/state/editor';
 import { flushAll, flushOnBackground } from '@/state/lifecycle';
 import { navStore } from '@/state/nav';
 import { RootStack } from '@/ui/RootStack';
-import { TitleScreen } from '@/ui/TitleScreen';
+import type { TitleScreen as TitleScreenType } from '@/ui/TitleScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -44,6 +44,9 @@ export default function RootLayout() {
   }, [ready]);
 
   if (!ready) return null;
+  // タイトル画面は Skia を使うので、Skia の読み込み（Web）が済んでから読み込む
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const TitleScreen = (require('@/ui/TitleScreen') as { TitleScreen: typeof TitleScreenType }).TitleScreen;
 
   return (
     <>
