@@ -36,6 +36,8 @@ export interface EditorState {
   /** 操作しても何も変わらなかった理由（画面に一言出す）。次の操作で消える */
   notice: 'same-color' | null;
   open(id: string): Promise<void>;
+  /** 画面から呼ぶ：この作品が開いていなければ（閉じる途中も含む）読み込む。開いていれば何もしない */
+  ensureOpen(id: string): Promise<void>;
   setTool(t: Tool): void;
   setColor(i: number): void;
   /** 作品名を変える（前後の空白を除く。空なら変えない）。書き出し画面から使う */
@@ -126,6 +128,12 @@ export function createEditorStore(
       if (changes.length) set({ version: get().version + 1 });
     };
 
+    // open / close は後から呼んだほうが勝つ。待っているあいだに次の open / close が来たら、結果を捨てる
+    // （ホームに戻った直後に作品を開くと、ホームの close が開いたばかりの作品を消していた）
+    let generation = 0;
+    /** 開いている（開こうとしている）作品の id。close を呼んだ時点で null にする */
+    let active: string | null = null;
+
     return {
       project: null,
       error: null,
@@ -144,12 +152,16 @@ export function createEditorStore(
       notice: null,
 
       async open(id) {
+        const mine = ++generation;
+        active = id;
         await saver.flush();
+        if (mine !== generation) return;
         history = new History();
         stroke = null;
         stepRange({ type: 'cancel' });
         try {
           const p = await repo.load(id);
+          if (mine !== generation) return;
           const top = countBeads(p.sheet)[0];
           // 最初の色：一番多く使っている色。なければ黒、黒が選べない作品（2色など）は選べる色の最初
           const pal = editorPalette(p);
@@ -170,6 +182,7 @@ export function createEditorStore(
             canRedo: false,
           });
         } catch (e) {
+          if (mine !== generation) return;
           console.warn('could not open project', e);
           set({ project: null, error: 'open-failed' });
         }
@@ -290,9 +303,17 @@ export function createEditorStore(
       },
 
       flush: () => saver.flush(),
+      ensureOpen(id) {
+        if (active === id && !get().error) return Promise.resolve();
+        return get().open(id);
+      },
+
       async close() {
+        const mine = ++generation;
+        active = null;
         if (stroke) get().strokeEnd();
         await saver.flush();
+        if (mine !== generation) return;
         history = new History();
         stepRange({ type: 'cancel' });
         set({ project: null, error: null, selection: new Set(), canUndo: false, canRedo: false });

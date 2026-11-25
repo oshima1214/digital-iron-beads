@@ -1,8 +1,9 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { Project } from '@/core/file/project';
 import { countBeads } from '@/core/sheet/counts';
 import { mirrorPlateIndex, platesOf } from '@/core/sheet/plates';
 import { editorStore, useEditor } from '@/state/editor';
@@ -48,7 +49,7 @@ export default function Editor() {
 
 
   useEffect(() => {
-    if (id && editorStore().getState().project?.id !== id) void editorStore().getState().open(id);
+    if (id) void editorStore().getState().ensureOpen(id);
   }, [id]);
 
   const counts = useMemo(
@@ -87,9 +88,16 @@ export default function Editor() {
 
   const status = loadStatus({ wanted: id, loaded: project?.id, error: !!error });
   const ready = project?.id === id;
+  // ホームに戻るとき、ホームが作品を閉じる（project が null になる）のは、この画面が横に消えていく途中。
+  // そのあいだは最後に表示していた作品をそのまま見せる（読み込み中の表示に変えない）
+  const focused = useIsFocused();
+  const [last, setLast] = useState<Project | null>(null);
+  if (ready && last !== project) setLast(project);
+  const leaving = !focused && !ready && last?.id === id;
+  const view = ready ? project : leaving ? last : null;
   const mode = editorMode(tool, melted);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const plates = useMemo(() => (ready ? platesOf(project.sheet) : []), [ready, project?.id, project?.sheet.width]);
+  const plates = useMemo(() => (view ? platesOf(view.sheet) : []), [view?.id, view?.sheet.width]);
   const plate = dev.isPad && plates.length > 0 ? plates[Math.min(plateIndex, plates.length - 1)] : null;
 
   // iPad：縦向きはパネルが上・シートが下、横向きはシートとパネルを左右に並べる（仕様書 §6.2）。iPhone はパネルが下。
@@ -151,8 +159,8 @@ export default function Editor() {
     <View style={styles.canvas}>
       {status === 'error' ? (
         <OpenError />
-      ) : ready ? (
-        <EditorCanvas plate={plate} physicalCell={dev.physicalCell} />
+      ) : view ? (
+        <EditorCanvas project={view} plate={plate} physicalCell={dev.physicalCell} readOnly={!ready} />
       ) : (
         <ActivityIndicator style={{ flex: 1 }} />
       )}

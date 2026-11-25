@@ -41,6 +41,7 @@ idle ──press──▶ dragging ──release（動かした）──▶ idle
 | もの | 場所 | 今の形 | そのままにした理由 |
 |---|---|---|---|
 | 自動保存 | `src/core/util/autosave.ts` | `value` / `timer` / `inflight` / `lastError` の組み合わせ（待ちなし・予約中・保存中・失敗して再試行待ち） | 1つの関数に閉じていて、順序のテストがある。作り直す危険のほうが大きい |
+| 作品を開く・閉じる | `editor.ts` の `generation` / `active` | 呼ぶたびに増える番号と、開いている作品の id。待っているあいだに次の `open` / `close` が来たら、前の結果を捨てる（後から呼んだほうが勝つ）。画面は `ensureOpen` で開く（閉じる途中なら開き直す） | 閉じる途中に開き直す競合を防ぐためだけの入れ物で、画面に見せる状態ではない。編集画面は、画面を離れる途中（`useIsFocused` が false で作品が閉じられた）だけ、最後の作品を触れない状態で描き続ける |
 | なぞり中 | `editor.ts` の `stroke` | `null` か「なぞり中」の2つ | 2つしかなく、`null` で十分に表せている |
 | 処理中 | `new/index.tsx`・`export/[id].tsx` の `busy`、`convert.tsx` の `converting`、`draft.ts` の `busy` | `boolean` | 「待ち」と「処理中」の2つだけ |
 | 起動 | `src/app/_layout.tsx` | フォント × Skia の読み込み → `ready` | 起動のときに1回通るだけ |
