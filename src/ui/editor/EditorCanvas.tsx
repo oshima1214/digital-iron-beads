@@ -3,6 +3,7 @@ import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platf
 
 import { fitPlate, PLATE_CELLS } from '@/core/physical';
 import { type Plate, plateSheet } from '@/core/sheet/plates';
+import type { Project } from '@/core/file/project';
 import type { Sheet } from '@/core/sheet/sheet';
 
 import type { Cell } from '@/core/sheet/ops';
@@ -29,14 +30,17 @@ function useFrameThrottled<T>(value: T): T {
 }
 
 interface Props {
+  /** 描く作品（ふだんはストアの作品。画面を離れる途中は、閉じる前の作品） */
+  project: Project;
+  /** 触れない（画面を離れる途中） */
+  readOnly?: boolean;
   /** iPad：このプレートだけを実寸で描く（null ならシート全体） */
   plate?: Plate | null;
   /** iPad：実寸の1マスの大きさ */
   physicalCell?: number | null;
 }
 
-export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) {
-  const project = useEditor((s) => s.project);
+export function EditorCanvas({ project, readOnly = false, plate = null, physicalCell = null }: Props) {
   const liveVersion = useEditor((s) => s.version);
   const version = useFrameThrottled(liveVersion);
   const mirror = useEditor((s) => s.mirror);
@@ -49,7 +53,7 @@ export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) 
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinchStart = useRef<{ t: Transform; a: Pt; b: Pt } | null>(null);
 
-  const full = project?.sheet;
+  const full = project.sheet;
   // iPad はプレート1枚（半分表示なら一部の行）だけを実寸で描き、マス座標にプレートの原点を足す
   const plateMode = !!(plate && physicalCell && full);
   // 編集は実物を重ねないので、プレートが実寸で丸ごと入らないとき（iPad mini など）は箱に収めて表示する
@@ -172,7 +176,7 @@ export function EditorCanvas({ plate = null, physicalCell = null }: Props = {}) 
   };
 
   return (
-    <View testID="editor-canvas" pointerEvents="box-only" style={{ flex: 1, overflow: 'hidden' }} onLayout={onLayout} {...responder.panHandlers}>
+    <View testID="editor-canvas" pointerEvents={readOnly ? 'none' : 'box-only'} style={{ flex: 1, overflow: 'hidden' }} onLayout={onLayout} {...responder.panHandlers}>
       {sheet && layout.cell > 0 && (
         <View
           style={{

@@ -283,3 +283,46 @@ test('opening a 16-color work picks a color from those 16', async () => {
   await store.getState().open(p.id);
   expect([1, 8]).toContain(store.getState().color); // 空のシートでも、黒（5018）ではなく2色のどちらか
 });
+
+// ホームに戻ると close が走る。保存を待っているあいだに同じ作品を開き直しても、閉じる処理が後から作品を消さない
+test('ensureOpen while close is still saving keeps the work open', async () => {
+  const { store, id } = await setup();
+  store.getState().setColor(RED);
+  store.getState().strokeBegin([3, 3]);
+  store.getState().strokeEnd();
+  const closing = store.getState().close();
+  const opening = store.getState().ensureOpen(id);
+  await Promise.all([closing, opening]);
+  expect(store.getState().project?.id).toBe(id);
+  expect(at(store, 3, 3)).toBe(RED);
+});
+
+// 後から呼んだほうが勝つ：開いている途中で閉じたら、読み終わっても開かない
+test('close after open started wins', async () => {
+  const { repo, store } = await setup();
+  const other = createProject('別', createSheet(13, 13), new Date('2026-11-10T00:00:00Z'));
+  await repo.save(other);
+  const opening = store.getState().open(other.id);
+  const closing = store.getState().close();
+  await Promise.all([opening, closing]);
+  expect(store.getState().project).toBeNull();
+});
+
+test('open after close started wins', async () => {
+  const { repo, store } = await setup();
+  const other = createProject('別', createSheet(13, 13), new Date('2026-11-10T00:00:00Z'));
+  await repo.save(other);
+  const closing = store.getState().close();
+  const opening = store.getState().open(other.id);
+  await Promise.all([closing, opening]);
+  expect(store.getState().project?.id).toBe(other.id);
+});
+
+test('ensureOpen does not reload a work that is already open', async () => {
+  const { store, id } = await setup();
+  store.getState().setColor(RED);
+  store.getState().strokeBegin([3, 3]);
+  store.getState().strokeEnd();
+  await store.getState().ensureOpen(id);
+  expect(store.getState().canUndo).toBe(true);
+});
