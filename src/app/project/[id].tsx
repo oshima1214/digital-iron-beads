@@ -13,6 +13,7 @@ import { CountsSheet } from '@/ui/editor/CountsSheet';
 import { EditorCanvas } from '@/ui/editor/EditorCanvas';
 import { loadStatus } from '@/core/machines/loadStatus';
 import { editorMode } from '@/core/machines/phases';
+import { type PhonePhysical, PHONE_PHYSICAL_SIZE } from '@/core/physical';
 import { NavButton } from '@/ui/NavButton';
 import { BrushBar } from '@/ui/editor/BrushBar';
 import { PaletteBar } from '@/ui/editor/PaletteBar';
@@ -95,6 +96,9 @@ export default function Editor() {
   if (ready && last !== project) setLast(project);
   const leaving = !focused && !ready && last?.id === id;
   const view = ready ? project : leaving ? last : null;
+  // iPhone：13×13 の作品は実寸で描く（入らない機種は注意書き）。実寸のあいだはシートの箱を画面の端まで広げる
+  const phoneOn = !dev.isPad && !!dev.phoneCell && view?.sheet.width === PHONE_PHYSICAL_SIZE && view?.sheet.height === PHONE_PHYSICAL_SIZE;
+  const [phonePhysical, setPhonePhysical] = useState<PhonePhysical>('off');
   const mode = editorMode(tool, melted);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const plates = useMemo(() => (view ? platesOf(view.sheet) : []), [view?.id, view?.sheet.width]);
@@ -128,6 +132,11 @@ export default function Editor() {
       </Text>
     </Text>
   );
+  const phoneNotice = phoneOn && phonePhysical === 'too-small' && (
+    <Text style={styles.phoneNotice} testID="phone-physical-notice">
+      この iPhone は画面が小さいため、実寸では表示できません
+    </Text>
+  );
   const tools = (
     <View style={[styles.panel, side && styles.sidePanel]}>
       {/* 選択バーの場所は常に確保する（ツールを切り替えてもシートが動かないように） */}
@@ -156,11 +165,18 @@ export default function Editor() {
     </View>
   );
   const canvas = (
-    <View style={styles.canvas}>
+    <View style={[styles.canvas, phoneOn && styles.canvasEdge]}>
       {status === 'error' ? (
         <OpenError />
       ) : view ? (
-        <EditorCanvas project={view} plate={plate} physicalCell={dev.physicalCell} readOnly={!ready} />
+        <EditorCanvas
+          project={view}
+          plate={plate}
+          physicalCell={dev.physicalCell}
+          phoneCell={phoneOn ? dev.phoneCell : null}
+          onPhonePhysical={setPhonePhysical}
+          readOnly={!ready}
+        />
       ) : (
         <ActivityIndicator style={{ flex: 1 }} />
       )}
@@ -170,6 +186,7 @@ export default function Editor() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       {topBar}
       {stats}
+      {phoneNotice}
       {side ? (
         <View style={styles.sideBySide}>
           {dev.panelSide === 'left' && tools}
@@ -198,6 +215,9 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
   stats: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, marginBottom: 4 },
   canvas: { flex: 1, backgroundColor: colors.panel, borderRadius: 12, overflow: 'hidden' },
+  // 画面の左右の余白（root の paddingHorizontal）を打ち消す。iPhone 15 などは余白があると 13マスが実寸で入らない
+  canvasEdge: { marginHorizontal: -12, borderRadius: 0 },
+  phoneNotice: { fontFamily: fonts.bold, fontSize: 12, color: colors.text, marginBottom: 4 },
   notice: { color: colors.text, fontFamily: fonts.bold },
   hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.subtext, paddingHorizontal: 6 },
   panel: { backgroundColor: colors.panel, borderRadius: 12, paddingHorizontal: 6, marginVertical: 8 },
