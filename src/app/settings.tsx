@@ -71,7 +71,7 @@ export default function Settings() {
             </Canvas>
           </>
         ) : (
-          <Text style={styles.note}>iPad でのみ使います（iPhone は実寸表示をしません）。</Text>
+          <Text style={styles.note}>iPhone は、13ビーズの作品だけ実寸で表示します（機種から大きさを決めるので、ここでの調整はいりません）。</Text>
         )}
       </View>
       <View style={styles.section}>
