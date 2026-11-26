@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { loadStatus } from '@/core/machines/loadStatus';
 import { navPhase } from '@/core/machines/phases';
+import { type PhonePhysical, PHONE_PHYSICAL_SIZE } from '@/core/physical';
 import { beadByIndex } from '@/core/palette/perler';
 import { mirrorPlateIndex } from '@/core/sheet/plates';
 import { navStore, useNav } from '@/state/nav';
@@ -33,6 +34,7 @@ export default function Nav() {
   const mirror = useNav((s) => s.mirror);
   const half = useNav((s) => s.half);
   const [fit, setFit] = useState<PlateFit | null>(null);
+  const [phonePhysical, setPhonePhysical] = useState<PhonePhysical>('off');
   const st = () => navStore().getState();
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export default function Nav() {
   const toData = (visual: number) => (mirror ? mirrorPlateIndex(plates, visual) : visual);
   const current = order[colorIndex];
   const plate = plates[plateIndex];
+  // iPhone：13×13 の作品は実寸で描く（入らない機種は注意書き）。シートの箱を画面の端まで広げる
+  const phoneOn = !dev.isPad && !!dev.phoneCell && project?.sheet.width === PHONE_PHYSICAL_SIZE && project?.sheet.height === PHONE_PHYSICAL_SIZE;
   const last = (mirror ? mirrorPlateIndex(plates, plateIndex) : plateIndex) >= plates.length - 1;
 
   const panel = ready && (
@@ -71,6 +75,11 @@ export default function Nav() {
         </Text>
         <NavButton title={mirror ? '⇋ 反転中' : '⇋ 反転'} testID="nav-mirror" onPress={() => st().toggleMirror()} />
       </View>
+      {phoneOn && phonePhysical === 'too-small' && (
+        <Text style={styles.phoneNotice} testID="phone-physical-notice">
+          この iPhone は画面が小さいため、実寸では表示できません
+        </Text>
+      )}
       {dev.needsCalibration && (
         <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={styles.banner}>
           <Text style={styles.bannerText}>実物のプレートに合わせて大きさを調整してください ›</Text>
@@ -201,8 +210,16 @@ export default function Nav() {
 
   const stage = ready && plate && (
     // iPad ではプレートを重ねるので、シート領域はタッチを受けない
-    <View style={styles.stage} pointerEvents={dev.isPad ? 'none' : 'auto'} testID="nav-stage">
-      <PlateStage sheet={project.sheet} plate={plate} focus={phase === 'placing' ? current?.index : undefined} mirror={mirror} half={half} onFit={setFit} />
+    <View style={[styles.stage, phoneOn && styles.stageEdge]} pointerEvents={dev.isPad ? 'none' : 'auto'} testID="nav-stage">
+      <PlateStage
+        sheet={project.sheet}
+        plate={plate}
+        focus={phase === 'placing' ? current?.index : undefined}
+        mirror={mirror}
+        half={half}
+        onFit={setFit}
+        onPhonePhysical={setPhonePhysical}
+      />
     </View>
   );
 
@@ -246,6 +263,9 @@ const styles = StyleSheet.create({
   hit: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   link: { fontFamily: fonts.regular, fontSize: 16, color: colors.accent },
   title: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  // 画面の左右の余白（root の paddingHorizontal）を打ち消す。iPhone 15 などは余白があると 13マスが実寸で入らない
+  stageEdge: { marginHorizontal: -12 },
+  phoneNotice: { fontFamily: fonts.bold, fontSize: 12, color: colors.text, textAlign: 'center' },
   banner: { backgroundColor: '#FFF4E5', borderRadius: 8, padding: 8 },
   bannerText: { fontFamily: fonts.regular, fontSize: 13, color: '#8A5300' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },

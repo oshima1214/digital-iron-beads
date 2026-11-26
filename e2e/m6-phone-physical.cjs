@@ -66,6 +66,19 @@ function check(name, ok, detail = '') {
     await openWork('?phone=1&ppi=400', { width: 390, height: 844 });
     check('editor: notice when it does not fit', (await notice().count()) === 1 && (await notice().textContent()) === NOTICE);
 
+    // ナビ（13 の作品。①で1ビーズ塗ってある）
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/nav/${id13}?phone=1&ppi=96`);
+    await page.getByTestId('nav-stage').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(600);
+    const nb = await page.getByTestId('nav-sheet').boundingBox();
+    check('nav: 13 beads drawn at physical size', Math.abs(nb.width - want) <= 1, `${nb.width.toFixed(1)} vs ${want.toFixed(1)}`);
+    check('nav: no notice when it fits', (await notice().count()) === 0);
+    await page.goto(`${BASE}/nav/${id13}?phone=1&ppi=400`);
+    await page.getByTestId('nav-stage').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(600);
+    check('nav: notice when it does not fit', (await notice().count()) === 1 && (await notice().textContent()) === NOTICE);
+
     // ④ 21 の作品は対象外
     await page.goto(`${BASE}/`);
     await page.getByTestId('new-project').click();
