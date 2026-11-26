@@ -22,6 +22,7 @@
 | 手持ちをタップ・なぞって選ぶ | `src/core/machines/dragSelect.ts` | `idle` ──press──▶ `pending` ──横に動く──▶ `painting(add / remove)`（最初のビーズで向きが決まる）／縦に動く──▶ `scrolling`／release──▶ タップとして切り替え。`allowsScroll` で、横になぞる間だけスクロールを止める | ビーズ化の「…」→ 手持ち（`src/ui/beads/BeadSetSheet.tsx`） |
 | ビーズ化のプレビュー | `src/state/draft.ts` の `ConvertPreview` と `beadsNeeded` | `original`（元の色）/ `beads` / `no-beads`（手持ちが0色）。`beadsNeeded` が `ready` でないと「完了」の前にビーズを聞く | ビーズ化 |
 | 使うビーズ | `src/core/palette/types.ts` の `BeadSet` | `original` / `8` / `16` / `32` / `owned` | ビーズ化 |
+| iPhone の実寸表示 | `src/core/physical.ts` `phonePhysical` | `off`（対象外）/ `exact`（実寸で描く）/ `too-small`（画面に入らない → 注意書き）。13×13 の作品・iPhone の1マス・表示場所の大きさから決まる（保存しない） | 編集、制作ナビ |
 | タッチの解釈 | `src/ui/editor/touchTracker.ts` | `idle` / `pending` / `tool` / `pinch` / `ignore` | 編集のシート |
 | 色えらびの対象 | `convert.tsx` / `text.tsx` の `picker` | `null` / `'set'` `'dark'` `'light'` / `'fg'` `'bg'` | ビーズ化、文字から作る |
 

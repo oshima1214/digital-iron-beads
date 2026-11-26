@@ -5,6 +5,9 @@ import { Platform } from 'react-native';
 export const isPad: boolean =
   Platform.OS === 'web' ? typeof location !== 'undefined' && /[?&]pad=1\b/.test(location.search) : Platform.OS === 'ios' && Platform.isPad;
 export const isWeb = Platform.OS === 'web';
+/** iPhone かどうか。Web（自動テスト用）は URL に ?phone=1 があるときだけ iPhone として扱う。 */
+export const isPhone: boolean =
+  Platform.OS === 'web' ? typeof location !== 'undefined' && /[?&]phone=1\b/.test(location.search) : Platform.OS === 'ios' && !Platform.isPad;
 export const modelId: string | null = isWeb ? null : Device.modelId;
 export const modelName: string | null = isWeb ? null : Device.modelName;
 

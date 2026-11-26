@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type LayoutChangeEvent, PanResponder, Platform, View } from 'react-native';
 
-import { fitPlate, PLATE_CELLS } from '@/core/physical';
+import { fitPlate, type PhonePhysical, phonePhysical, PLATE_CELLS } from '@/core/physical';
 import { type Plate, plateSheet } from '@/core/sheet/plates';
 import type { Project } from '@/core/file/project';
 import type { Sheet } from '@/core/sheet/sheet';
@@ -38,9 +38,13 @@ interface Props {
   plate?: Plate | null;
   /** iPad：実寸の1マスの大きさ */
   physicalCell?: number | null;
+  /** iPhone：実寸の1マスの大きさ（13×13 の作品だけ実寸で描く。core/physical の phonePhysical） */
+  phoneCell?: number | null;
+  /** iPhone の実寸表示の結果が変わったら知らせる（入らないときに画面が注意書きを出す） */
+  onPhonePhysical?(p: PhonePhysical): void;
 }
 
-export function EditorCanvas({ project, readOnly = false, plate = null, physicalCell = null }: Props) {
+export function EditorCanvas({ project, readOnly = false, plate = null, physicalCell = null, phoneCell = null, onPhonePhysical }: Props) {
   const liveVersion = useEditor((s) => s.version);
   const version = useFrameThrottled(liveVersion);
   const mirror = useEditor((s) => s.mirror);
@@ -49,7 +53,6 @@ export function EditorCanvas({ project, readOnly = false, plate = null, physical
   const range = useEditor((s) => s.range);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState<Transform>(IDENTITY);
-  const tracker = useRef(createTouchTracker(CAN_ZOOM));
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinchStart = useRef<{ t: Transform; a: Pt; b: Pt } | null>(null);
 
@@ -65,12 +68,24 @@ export function EditorCanvas({ project, readOnly = false, plate = null, physical
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [full, plateMode, plate, rows[0], rows[1], version],
   );
+  // iPhone：13×13 の作品が画面に入るなら実寸で描き、ズーム・移動はしない（iPad と同じ）
+  const phone = plateMode ? 'off' : phonePhysical({ phoneCell, sheetW: full.width, sheetH: full.height, boxW: box.w, boxH: box.h });
+  const exact = phone === 'exact';
+  useEffect(() => {
+    onPhonePhysical?.(phone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone]);
+  const canZoom = CAN_ZOOM && !exact;
+  const tracker = useMemo(() => createTouchTracker(canZoom), [canZoom]);
+  if (exact && zoom !== IDENTITY) setZoom(IDENTITY);
   const offset = plateMode ? { x: plate!.originX, y: plate!.originY + rows[0] } : { x: 0, y: 0 };
   const layout = !sheet
     ? { cell: 0, width: 0, height: 0 }
     : plateMode
       ? { cell: plateCell, width: plateCell * sheet.width, height: plateCell * sheet.height }
-      : sheetLayout(sheet, box.w, box.h);
+      : exact
+        ? { cell: phoneCell!, width: phoneCell! * sheet.width, height: phoneCell! * sheet.height }
+        : sheetLayout(sheet, box.w, box.h);
 
   const clamped = clampTransform(zoom, layout.width, layout.height, box.w, box.h);
   // 値が同じなら同じオブジェクトを使う（タッチの受け取りを毎回作り直さないように）
@@ -154,21 +169,21 @@ export function EditorCanvas({ project, readOnly = false, plate = null, physical
       onMoveShouldSetPanResponder: () => !melted,
       onPanResponderGrant: (e) => {
         const [first] = touchesOf(e);
-        run(tracker.current.start(first.id, first.p, Date.now()));
+        run(tracker.start(first.id, first.p, Date.now()));
         clearHold();
-        if (CAN_ZOOM) holdTimer.current = setTimeout(() => run(tracker.current.tick(Date.now())), HOLD_MS);
+        if (canZoom) holdTimer.current = setTimeout(() => run(tracker.tick(Date.now())), HOLD_MS);
       },
-      onPanResponderMove: (e) => run(tracker.current.move(touchesOf(e), Date.now())),
+      onPanResponderMove: (e) => run(tracker.move(touchesOf(e), Date.now())),
       onPanResponderRelease: () => {
         clearHold();
-        run(tracker.current.end(Date.now()));
+        run(tracker.end(Date.now()));
       },
       onPanResponderTerminate: () => {
         clearHold();
-        run(tracker.current.end(Date.now()));
+        run(tracker.end(Date.now()));
       },
     });
-  }, [sheet, full, offset.x, offset.y, t, layout.cell, layout.width, layout.height, box.w, box.h, mirror, melted]);
+  }, [tracker, canZoom, sheet, full, offset.x, offset.y, t, layout.cell, layout.width, layout.height, box.w, box.h, mirror, melted]);
   /* eslint-enable react-hooks/refs, react-hooks/purity */
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -179,6 +194,7 @@ export function EditorCanvas({ project, readOnly = false, plate = null, physical
     <View testID="editor-canvas" pointerEvents={readOnly ? 'none' : 'box-only'} style={{ flex: 1, overflow: 'hidden' }} onLayout={onLayout} {...responder.panHandlers}>
       {sheet && layout.cell > 0 && (
         <View
+          testID="editor-sheet"
           style={{
             position: 'absolute',
             left: 0,
@@ -195,7 +211,7 @@ export function EditorCanvas({ project, readOnly = false, plate = null, physical
             mirror={mirror}
             styleMode={melted ? 'melted' : 'bead'}
             version={version}
-            exactCell={plateMode ? layout.cell : undefined}
+            exactCell={plateMode || exact ? layout.cell : undefined}
           />
           {!melted && full && (
             <SelectionOverlay sheet={sheet} cell={layout.cell} mirror={mirror} cells={toLocal(selection, full.width, offset, sheet)} rect={rangeLocal(range, offset)} />

@@ -1,4 +1,4 @@
-import { cellPt, chooseStageLayout, fitPlate, halfRows, ptPerInchFor } from './physical';
+import { cellPt, chooseStageLayout, fitPlate, halfRows, phonePhysical, phonePtPerInch, ptPerInchFor } from './physical';
 
 test('132pt/inch iPad → cell 25.98pt', () => {
   expect(cellPt(132, 1)).toBeCloseTo(25.984, 2);
@@ -56,4 +56,41 @@ test('fitPlate with the real iPad mini landscape stage (compact panel) → half'
   const r = fitPlate(cellPt(163, 1), 1109, 620);
   expect(r.fits).toBe('half');
   expect(r.rows).toBeGreaterThanOrEqual(15);
+});
+
+test('phonePtPerInch by model id', () => {
+  expect(phonePtPerInch('iPhone12,8')).toBe(163); // SE 2
+  expect(phonePtPerInch('iPhone14,6')).toBe(163); // SE 3
+  expect(phonePtPerInch('iPhone12,1')).toBe(163); // 11
+  expect(phonePtPerInch('iPhone14,4')).toBeCloseTo(158.7, 1); // 13 mini
+  expect(phonePtPerInch('iPhone15,4')).toBeCloseTo(153.33, 2); // 15
+  expect(phonePtPerInch(null)).toBeCloseTo(153.33, 2);
+});
+
+test('phonePhysical: 13 beads fit on iPhone 15 width (393pt) but not iPhone 14 (390pt)', () => {
+  const phoneCell = cellPt(phonePtPerInch('iPhone15,4'), 1); // ≈ 30.19pt、13マス ≈ 392.4pt
+  const base = { phoneCell, sheetW: 13, sheetH: 13, boxH: 500 };
+  expect(phonePhysical({ ...base, boxW: 393 })).toBe('exact');
+  expect(phonePhysical({ ...base, boxW: 390 })).toBe('too-small');
+  expect(phonePhysical({ ...base, boxW: 393, boxH: 380 })).toBe('too-small');
+});
+
+test('phonePhysical: off for iPad / other sizes / before layout', () => {
+  const box = { boxW: 500, boxH: 500 };
+  expect(phonePhysical({ phoneCell: null, sheetW: 13, sheetH: 13, ...box })).toBe('off');
+  expect(phonePhysical({ phoneCell: 30, sheetW: 21, sheetH: 21, ...box })).toBe('off');
+  expect(phonePhysical({ phoneCell: 30, sheetW: 13, sheetH: 13, boxW: 0, boxH: 0 })).toBe('off');
+});
+
+// 設定の「画面表示の拡大」がオンだと、同じ画面に少ない pt を並べる（pt が大きくなる）。本来の幅との比で補正する
+test('phonePtPerInch corrects for Display Zoom using the native point width', () => {
+  // 16 Pro Max：本来 440pt。拡大すると 402pt
+  expect(phonePtPerInch('iPhone17,2', 440)).toBeCloseTo(153.33, 2);
+  expect(phonePtPerInch('iPhone17,2', 402)).toBeCloseTo((460 / 3) * (440 / 402), 2);
+  // 拡大した 16 Pro Max は、402pt の幅に 13マスが入らない
+  const cell = cellPt(phonePtPerInch('iPhone17,2', 402), 1);
+  expect(phonePhysical({ phoneCell: cell, sheetW: 13, sheetH: 13, boxW: 402, boxH: 600 })).toBe('too-small');
+  // 表にない機種・幅が分からないときは補正しない
+  expect(phonePtPerInch('iPhone99,1', 375)).toBeCloseTo(153.33, 2);
+  expect(phonePtPerInch('iPhone15,4')).toBeCloseTo(153.33, 2);
 });
