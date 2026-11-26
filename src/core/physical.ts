@@ -45,3 +45,28 @@ export function chooseStageLayout(o: { winW: number; winH: number; cell: number;
   const stageW = o.winW - (o.padding ?? 24) - (o.gap ?? 12) - o.panelW;
   return o.cell * PLATE_CELLS <= stageW ? 'side' : 'compact';
 }
+
+/** iPhone で実寸表示するのは 13×13 の作品だけ（約 65mm 四方。それより大きいと iPhone の画面に入らない） */
+export const PHONE_PHYSICAL_SIZE = 13;
+
+const PHONE_163 = new Set(['iPhone12,8', 'iPhone14,6', 'iPhone11,8', 'iPhone12,1']); // SE 第2・3世代、XR、11（326ppi @2x）
+const PHONE_MINI = new Set(['iPhone13,1', 'iPhone14,4']); // 12 mini / 13 mini（476ppi @3x）
+
+/** iPhone のポイント密度（pt/inch）。表にない機種は、いまの多くの iPhone と同じ 460ppi @3x とする。 */
+export function phonePtPerInch(modelId: string | null): number {
+  if (modelId && PHONE_163.has(modelId)) return 163;
+  if (modelId && PHONE_MINI.has(modelId)) return 476 / 3;
+  return 460 / 3;
+}
+
+/**
+ * iPhone の実寸表示（ほかの値から決まる。保存しない）。
+ * off = 対象外（iPad・13×13 以外・まだ大きさが測れていない）、exact = 実寸で描く、too-small = 画面に入らない（注意書きを出す）
+ */
+export type PhonePhysical = 'off' | 'exact' | 'too-small';
+
+export function phonePhysical(o: { phoneCell: number | null; sheetW: number; sheetH: number; boxW: number; boxH: number }): PhonePhysical {
+  if (!o.phoneCell || o.sheetW !== PHONE_PHYSICAL_SIZE || o.sheetH !== PHONE_PHYSICAL_SIZE || o.boxW <= 0 || o.boxH <= 0) return 'off';
+  const size = o.phoneCell * PHONE_PHYSICAL_SIZE;
+  return size <= o.boxW && size <= o.boxH ? 'exact' : 'too-small';
+}

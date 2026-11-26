@@ -1,4 +1,4 @@
-import { cellPt, chooseStageLayout, fitPlate, halfRows, ptPerInchFor } from './physical';
+import { cellPt, chooseStageLayout, fitPlate, halfRows, phonePhysical, phonePtPerInch, ptPerInchFor } from './physical';
 
 test('132pt/inch iPad → cell 25.98pt', () => {
   expect(cellPt(132, 1)).toBeCloseTo(25.984, 2);
@@ -56,4 +56,28 @@ test('fitPlate with the real iPad mini landscape stage (compact panel) → half'
   const r = fitPlate(cellPt(163, 1), 1109, 620);
   expect(r.fits).toBe('half');
   expect(r.rows).toBeGreaterThanOrEqual(15);
+});
+
+test('phonePtPerInch by model id', () => {
+  expect(phonePtPerInch('iPhone12,8')).toBe(163); // SE 2
+  expect(phonePtPerInch('iPhone14,6')).toBe(163); // SE 3
+  expect(phonePtPerInch('iPhone12,1')).toBe(163); // 11
+  expect(phonePtPerInch('iPhone14,4')).toBeCloseTo(158.7, 1); // 13 mini
+  expect(phonePtPerInch('iPhone15,4')).toBeCloseTo(153.33, 2); // 15
+  expect(phonePtPerInch(null)).toBeCloseTo(153.33, 2);
+});
+
+test('phonePhysical: 13 beads fit on iPhone 15 width (393pt) but not iPhone 14 (390pt)', () => {
+  const phoneCell = cellPt(phonePtPerInch('iPhone15,4'), 1); // ≈ 30.19pt、13マス ≈ 392.4pt
+  const base = { phoneCell, sheetW: 13, sheetH: 13, boxH: 500 };
+  expect(phonePhysical({ ...base, boxW: 393 })).toBe('exact');
+  expect(phonePhysical({ ...base, boxW: 390 })).toBe('too-small');
+  expect(phonePhysical({ ...base, boxW: 393, boxH: 380 })).toBe('too-small');
+});
+
+test('phonePhysical: off for iPad / other sizes / before layout', () => {
+  const box = { boxW: 500, boxH: 500 };
+  expect(phonePhysical({ phoneCell: null, sheetW: 13, sheetH: 13, ...box })).toBe('off');
+  expect(phonePhysical({ phoneCell: 30, sheetW: 21, sheetH: 21, ...box })).toBe('off');
+  expect(phonePhysical({ phoneCell: 30, sheetW: 13, sheetH: 13, boxW: 0, boxH: 0 })).toBe('off');
 });
