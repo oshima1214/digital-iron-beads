@@ -81,3 +81,16 @@ test('phonePhysical: off for iPad / other sizes / before layout', () => {
   expect(phonePhysical({ phoneCell: 30, sheetW: 21, sheetH: 21, ...box })).toBe('off');
   expect(phonePhysical({ phoneCell: 30, sheetW: 13, sheetH: 13, boxW: 0, boxH: 0 })).toBe('off');
 });
+
+// 設定の「画面表示の拡大」がオンだと、同じ画面に少ない pt を並べる（pt が大きくなる）。本来の幅との比で補正する
+test('phonePtPerInch corrects for Display Zoom using the native point width', () => {
+  // 16 Pro Max：本来 440pt。拡大すると 402pt
+  expect(phonePtPerInch('iPhone17,2', 440)).toBeCloseTo(153.33, 2);
+  expect(phonePtPerInch('iPhone17,2', 402)).toBeCloseTo((460 / 3) * (440 / 402), 2);
+  // 拡大した 16 Pro Max は、402pt の幅に 13マスが入らない
+  const cell = cellPt(phonePtPerInch('iPhone17,2', 402), 1);
+  expect(phonePhysical({ phoneCell: cell, sheetW: 13, sheetH: 13, boxW: 402, boxH: 600 })).toBe('too-small');
+  // 表にない機種・幅が分からないときは補正しない
+  expect(phonePtPerInch('iPhone99,1', 375)).toBeCloseTo(153.33, 2);
+  expect(phonePtPerInch('iPhone15,4')).toBeCloseTo(153.33, 2);
+});

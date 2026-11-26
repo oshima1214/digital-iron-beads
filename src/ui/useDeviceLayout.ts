@@ -1,4 +1,4 @@
-import { useWindowDimensions } from 'react-native';
+import { Dimensions, useWindowDimensions } from 'react-native';
 
 import { cellPt, chooseStageLayout, phonePtPerInch, ptPerInchFor } from '@/core/physical';
 import { isPad, isPhone, isWeb, modelId, modelName, webPpi } from '@/platform/device';
@@ -8,7 +8,9 @@ import { useSettings } from '@/state/settings';
 export const SIDE_PANEL_W = 360;
 
 /** iPhone のポイント密度。Web（?phone=1）は ?ppi= があればその値、なければ CSS の 96 */
-const phonePpi = isWeb ? (webPpi ?? 96) : phonePtPerInch(modelId);
+// 今の画面の短い辺（pt）。「画面表示の拡大」がオンだと本来の幅より狭いので、その分を補正する
+const screen = Dimensions.get('screen');
+const phonePpi = isWeb ? (webPpi ?? 96) : phonePtPerInch(modelId, Math.min(screen.width, screen.height));
 
 const density = webPpi ? { ptPerInch: webPpi, known: true } : ptPerInchFor(modelId, modelName, isWeb);
 
